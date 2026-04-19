@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>ԿինոԲակ</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const D={bg:"#06060c",surface:"#0d0d17",card:"#11111e",cardH:"#161625",border:"#1f1f32",borderL:"#2a2a42",gold:"#c9a84c",goldL:"#c9a84c1a",goldD:"#a8883a",goldGlow:"#c9a84c30",text:"#f2ede4",textSub:"#a09880",muted:"#56566e",red:"#d94f4f",green:"#3dba72",blue:"#4a90d9"};
+const L={bg:"#f5f2eb",surface:"#ffffff",card:"#faf8f3",cardH:"#f0ede4",border:"#e4dfd4",borderL:"#d4cfc4",gold:"#a8782a",goldL:"#a8782a14",goldD:"#8a6222",goldGlow:"#a8782a20",text:"#1a1814",textSub:"#5a5244",muted:"#9a9080",red:"#c04040",green:"#2e9460",blue:"#3472b8"};
+
+const GENRES=[{id:"all",label:"Բոլոր",icon:"🎬"},{id:"action",label:"Ակցիոն",icon:"💥"},{id:"drama",label:"Դրամա",icon:"🎭"},{id:"comedy",label:"Կատակերգություն",icon:"😂"},{id:"horror",label:"Սարսափ",icon:"👻"},{id:"thriller",label:"Թրիլեր",icon:"🔪"},{id:"sci-fi",label:"Ֆանտաստիկա",icon:"🚀"},{id:"romance",label:"Ռոմանտիկ",icon:"❤️"},{id:"armenian",label:"Հայկական",icon:"🇦🇲"},{id:"animation",label:"Անիմացիա",icon:"✨"}];
+
+const SEED=[
+  {id:"m1",title:"Inception",year:2010,genre:"thriller",duration:"2ժ 28ր",director:"Christopher Nolan",language:"Անգլերեն",rating:8.8,poster:"https://picsum.photos/seed/inc001/300/450",videoUrl:"",videoName:"",description:"Dom Cobb-ը երազներում գաղտնիքները գողանալու վարպետ է:",addedAt:Date.now()-86400000*1,price:3500},
+  {id:"m2",title:"Parasite",year:2019,genre:"drama",duration:"2ժ 12ր",director:"Bong Joon-ho",language:"Կորեերեն",rating:8.5,poster:"https://picsum.photos/seed/par002/300/450",videoUrl:"",videoName:"",description:"Երկու ընտանիք՝ հարուստներ և աղքատներ, դաժան հակություն ունեն:",addedAt:Date.now()-86400000*5,price:2800},
+  {id:"m3",title:"Interstellar",year:2014,genre:"sci-fi",duration:"2ժ 49ր",director:"Christopher Nolan",language:"Անգլերեն",rating:8.6,poster:"https://picsum.photos/seed/int003/300/450",videoUrl:"",videoName:"",description:"Մարդկությունը փրկելու տիեզերական արշավանքը:",addedAt:Date.now()-86400000*12,price:3500},
+  {id:"m4",title:"Joker",year:2019,genre:"drama",duration:"2ժ 02ր",director:"Todd Phillips",language:"Անգլերեն",rating:8.4,poster:"https://picsum.photos/seed/jok004/300/450",videoUrl:"",videoName:"",description:"Արթուր Ֆլեքը կատակերգու է, որը դառնում է Գոթեմի հանցագործը:",addedAt:Date.now()-86400000*8,price:2800},
+  {id:"m5",title:"The Godfather",year:1972,genre:"drama",duration:"2ժ 55ր",director:"Francis Ford Coppola",language:"Անգլերեն",rating:9.2,poster:"https://picsum.photos/seed/god005/300/450",videoUrl:"",videoName:"",description:"Corleone մաֆիոզ ընտանիքի դրաման:",addedAt:Date.now()-86400000*30,price:2500},
+  {id:"m6",title:"Avengers: Endgame",year:2019,genre:"action",duration:"3ժ 01ր",director:"Russo Brothers",language:"Անգլերեն",rating:8.4,poster:"https://picsum.photos/seed/avg006/300/450",videoUrl:"",videoName:"",description:"Marvel-ի հերոսները վերջին ճակատամարտն են գնում Thanos-ի դեմ:",addedAt:Date.now()-86400000*3,price:4000},
+  {id:"m7",title:"Get Out",year:2017,genre:"horror",duration:"1ժ 44ր",director:"Jordan Peele",language:"Անգլերեն",rating:7.7,poster:"https://picsum.photos/seed/get007/300/450",videoUrl:"",videoName:"",description:"Սև երիտասարդի ծանոթության ժամանակ բացահայտված սարսափ գաղտնիք:",addedAt:Date.now()-86400000*6,price:2800},
+  {id:"m8",title:"La La Land",year:2016,genre:"romance",duration:"2ժ 08ր",director:"Damien Chazelle",language:"Անգլերեն",rating:8.0,poster:"https://picsum.photos/seed/lal008/300/450",videoUrl:"",videoName:"",description:"Լոս Անջելեսում սիրավեպ երաժշտությամբ:",addedAt:Date.now()-86400000*15,price:2800},
+  {id:"m9",title:"The Dark Knight",year:2008,genre:"action",duration:"2ժ 32ր",director:"Christopher Nolan",language:"Անգլերեն",rating:9.0,poster:"https://picsum.photos/seed/tdk009/300/450",videoUrl:"",videoName:"",description:"Batman-ի և Joker-ի վերջնական ընդհարումը Գոթեմ քաղաքում:",addedAt:Date.now()-86400000*20,price:3200},
+  {id:"m10",title:"Spirited Away",year:2001,genre:"animation",duration:"2ժ 05ր",director:"Hayao Miyazaki",language:"Ճապոներեն",rating:9.3,poster:"https://picsum.photos/seed/spi010/300/450",videoUrl:"",videoName:"",description:"Տասնամյա աղջիկը կախարդական աշխարհում է հայտնվում:",addedAt:Date.now()-86400000*45,price:2200},
+];
+
+const INIT_USERS=[{id:"u_admin",username:"admin",password:"admin123",isAdmin:true}];
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2);
+const avgRating=rs=>rs?.length?(rs.reduce((s,r)=>s+r.stars,0)/rs.length).toFixed(1):null;
+
+/* ── localStorage helpers ── */
+const LS_MOVIES   = "kb_movies_v1";
+const LS_RATINGS  = "kb_ratings_v1";
+const LS_COMMENTS = "kb_comments_v1";
+const LS_USERS    = "kb_users_v1";
+
+function lsGet(key, fallback){
+  try{
+    const raw = localStorage.getItem(key);
+    if(raw===null) return fallback;
+    return JSON.parse(raw);
+  }catch(e){ return fallback; }
+}
+function lsSet(key, value){
+  try{ localStorage.setItem(key, JSON.stringify(value)); }catch(e){}
+}
+/* ── ── ── ── ── ── ── ── ── */
+
+const G_CSS=(C)=>`
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Jost:wght@300;400;500;600;700;800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:${C.bg};color:${C.text};font-family:'Jost',sans-serif;overflow-x:hidden;-webkit-tap-highlight-color:transparent;transition:background .35s,color .35s}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:${C.surface}}
+::-webkit-scrollbar-thumb{background:${C.borderL};border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:${C.gold}}
+select option{background:${C.card};color:${C.text}}
+input,textarea,select{font-family:'Jost',sans-serif}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
+@keyframes popIn{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+@keyframes shimmer{from{transform:translateX(-150%)}to{transform:translateX(250%)}}
+@keyframes bounce{0%{transform:translateY(0)}40%{transform:translateY(-9px)}70%{transform:translateY(3px)}100%{transform:translateY(0)}}
+.aFI{animation:fadeIn .3s ease both}
+.aSU{animation:slideUp .38s cubic-bezier(.22,1,.36,1) both}
+.aSC{animation:scaleIn .32s cubic-bezier(.22,1,.36,1) both}
+.cl{cursor:pointer;transition:transform .26s cubic-bezier(.22,1,.36,1)}
+.cl:hover{transform:translateY(-5px) scale(1.02)}
+.cl:active{transform:scale(.95)!important}
+.bp{transition:transform .12s,opacity .12s;cursor:pointer}
+.bp:active{transform:scale(.9);opacity:.75}
+`;
+
+function Ic({n,size=22,color,style={}}){
+  const s={width:size,height:size,display:"block",flexShrink:0,...style};
+  const c=color;
+  const P={
+    home:<><path d="M3 12L12 4l9 8" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>,
+    film:<><rect x="2" y="2" width="20" height="20" rx="2" stroke={c} strokeWidth="1.8" fill="none"/><line x1="7" y1="2" x2="7" y2="22" stroke={c} strokeWidth="1.4"/><line x1="17" y1="2" x2="17" y2="22" stroke={c} strokeWidth="1.4"/><line x1="2" y1="12" x2="22" y2="12" stroke={c} strokeWidth="1.4"/><line x1="2" y1="7" x2="7" y2="7" stroke={c} strokeWidth="1.4"/><line x1="2" y1="17" x2="7" y2="17" stroke={c} strokeWidth="1.4"/><line x1="17" y1="7" x2="22" y2="7" stroke={c} strokeWidth="1.4"/><line x1="17" y1="17" x2="22" y2="17" stroke={c} strokeWidth="1.4"/></>,
+    bookmark:<path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" stroke={c} strokeWidth="1.8" fill="none" strokeLinejoin="round"/>,
+    bookmarkF:<path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" fill={c} stroke={c} strokeWidth="1.8" strokeLinejoin="round"/>,
+    user:<><circle cx="12" cy="8" r="4" stroke={c} strokeWidth="1.8" fill="none"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round"/></>,
+    gear:<><circle cx="12" cy="12" r="3" stroke={c} strokeWidth="1.8" fill="none"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke={c} strokeWidth="1.8" fill="none"/></>,
+    play:<><circle cx="12" cy="12" r="10" stroke={c} strokeWidth="1.8" fill="none"/><polygon points="10,8 17,12 10,16" fill={c}/></>,
+    search:<><circle cx="11" cy="11" r="7" stroke={c} strokeWidth="1.8" fill="none"/><line x1="16.5" y1="16.5" x2="22" y2="22" stroke={c} strokeWidth="1.8" strokeLinecap="round"/></>,
+    star:<polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" stroke={c} strokeWidth="1.8" fill="none" strokeLinejoin="round"/>,
+    starF:<polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill={c}/>,
+    chat:<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke={c} strokeWidth="1.8" fill="none" strokeLinejoin="round"/>,
+    back:<><line x1="19" y1="12" x2="5" y2="12" stroke={c} strokeWidth="1.8" strokeLinecap="round"/><polyline points="12,19 5,12 12,5" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>,
+    x:<><line x1="18" y1="6" x2="6" y2="18" stroke={c} strokeWidth="2" strokeLinecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke={c} strokeWidth="2" strokeLinecap="round"/></>,
+    check:<polyline points="20,6 9,17 4,12" stroke={c} strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>,
+    trash:<><polyline points="3,6 5,6 21,6" stroke={c} strokeWidth="1.8" strokeLinecap="round"/><path d="M19 6l-1 14H6L5 6" stroke={c} strokeWidth="1.8" fill="none" strokeLinejoin="round"/><line x1="10" y1="11" x2="10" y2="17" stroke={c} strokeWidth="1.8" strokeLinecap="round"/><line x1="14" y1="11" x2="14" y2="17" stroke={c} strokeWidth="1.8" strokeLinecap="round"/><path d="M9 6V4h6v2" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round"/></>,
+    edit:<><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>,
+    save:<><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke={c} strokeWidth="1.8" fill="none" strokeLinejoin="round"/><polyline points="17,21 17,13 7,13 7,21" stroke={c} strokeWidth="1.8" fill="none" strokeLinejoin="round"/><polyline points="7,3 7,8 15,8" stroke={c} strokeWidth="1.8" fill="none" strokeLinejoin="round"/></>,
+    clock:<><circle cx="12" cy="12" r="10" stroke={c} strokeWidth="1.8" fill="none"/><polyline points="12,6 12,12 16,14" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></>,
+    globe:<><circle cx="12" cy="12" r="10" stroke={c} strokeWidth="1.8" fill="none"/><line x1="2" y1="12" x2="22" y2="12" stroke={c} strokeWidth="1.8"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" stroke={c} strokeWidth="1.8" fill="none"/></>,
+    ticket:<><path d="M2 9a3 3 0 000 6v2a2 2 0 002 2h16a2 2 0 002-2v-2a3 3 0 000-6V7a2 2 0 00-2-2H4a2 2 0 00-2 2v2z" stroke={c} strokeWidth="1.8" fill="none" strokeLinejoin="round"/><line x1="9" y1="4" x2="9" y2="20" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeDasharray="2 3"/></>,
+    lock:<><rect x="3" y="11" width="18" height="11" rx="2" stroke={c} strokeWidth="1.8" fill="none"/><path d="M7 11V7a5 5 0 0110 0v4" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round"/></>,
+    eye:<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke={c} strokeWidth="1.8" fill="none"/><circle cx="12" cy="12" r="3" stroke={c} strokeWidth="1.8" fill="none"/></>,
+    logout:<><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round"/><polyline points="16,17 21,12 16,7" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke={c} strokeWidth="1.8" strokeLinecap="round"/></>,
+    send:<><line x1="22" y1="2" x2="11" y2="13" stroke={c} strokeWidth="1.8" strokeLinecap="round"/><polygon points="22,2 15,22 11,13 2,9" stroke={c} strokeWidth="1.8" fill="none" strokeLinejoin="round"/></>,
+    sun:<><circle cx="12" cy="12" r="5" stroke={c} strokeWidth="1.8" fill="none"/><line x1="12" y1="1" x2="12" y2="3" stroke={c} strokeWidth="2" strokeLinecap="round"/><line x1="12" y1="21" x2="12" y2="23" stroke={c} strokeWidth="2" strokeLinecap="round"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke={c} strokeWidth="2" strokeLinecap="round"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke={c} strokeWidth="2" strokeLinecap="round"/><line x1="1" y1="12" x2="3" y2="12" stroke={c} strokeWidth="2" strokeLinecap="round"/><line x1="21" y1="12" x2="23" y2="12" stroke={c} strokeWidth="2" strokeLinecap="round"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke={c} strokeWidth="2" strokeLinecap="round"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke={c} strokeWidth="2" strokeLinecap="round"/></>,
+    moon:<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/>,
+    upload:<><polyline points="16,16 12,12 8,16" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/><line x1="12" y1="12" x2="12" y2="21" stroke={c} strokeWidth="1.8" strokeLinecap="round"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3" stroke={c} strokeWidth="1.8" fill="none" strokeLinecap="round"/></>,
+    list:<><line x1="8" y1="6" x2="21" y2="6" stroke={c} strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="12" x2="21" y2="12" stroke={c} strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="18" x2="21" y2="18" stroke={c} strokeWidth="1.8" strokeLinecap="round"/><circle cx="3" cy="6" r="1" fill={c}/><circle cx="3" cy="12" r="1" fill={c}/><circle cx="3" cy="18" r="1" fill={c}/></>,
+    video:<><rect x="2" y="4" width="20" height="16" rx="2" stroke={c} strokeWidth="1.8" fill="none"/><polygon points="10,9 16,12 10,15" fill={c}/></>,
+  };
+  return <svg viewBox="0 0 24 24" style={s}>{P[n]||null}</svg>;
+}
+
+function Logo({h=36,C}){
+  return(
+    <svg height={h} viewBox="0 0 210 52" fill="none">
+      <rect x="0" y="3" width="9" height="46" rx="2" fill={C.gold} opacity=".12"/>
+      <rect x="1.5" y="7" width="6" height="8" rx="1.5" fill={C.gold}/>
+      <rect x="1.5" y="19" width="6" height="8" rx="1.5" fill={C.gold}/>
+      <rect x="1.5" y="31" width="6" height="8" rx="1.5" fill={C.gold}/>
+      <rect x="1.5" y="41" width="6" height="6" rx="1.5" fill={C.gold} opacity=".6"/>
+      <text x="17" y="38" fontFamily="'Cormorant Garamond',serif" fontWeight="700" fontSize="34" letterSpacing="1.5" fill={C.text}>Կինո</text>
+      <text x="112" y="38" fontFamily="'Cormorant Garamond',serif" fontWeight="700" fontSize="34" letterSpacing="1.5" fill={C.gold}>Բակ</text>
+      <line x1="17" y1="44" x2="194" y2="44" stroke={C.gold} strokeWidth=".7" opacity=".35"/>
+    </svg>
+  );
+}
+
+function Stars({value=0,onRate,size=28,C}){
+  const[hov,setHov]=useState(0);
+  return(
+    <div style={{display:"flex",gap:4}}>
+      {[1,2,3,4,5].map(s=>(
+        <span key={s} onClick={()=>onRate?.(s)} onMouseEnter={()=>onRate&&setHov(s)} onMouseLeave={()=>setHov(0)}
+          style={{display:"flex",cursor:onRate?"pointer":"default",transition:"transform .13s",transform:(hov&&s<=hov&&onRate)?"scale(1.45)":"scale(1)"}}>
+          <Ic n={s<=(hov||value)?"starF":"star"} size={size} color={s<=(hov||value)?C.gold:C.border}/>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function Confirm({msg,onOk,onCancel,C}){
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:800,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={onCancel}>
+      <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.86)",backdropFilter:"blur(20px)"}}/>
+      <div className="aSC" onClick={e=>e.stopPropagation()}
+        style={{position:"relative",background:C.card,borderRadius:20,padding:"34px 28px",border:`1px solid ${C.border}`,maxWidth:340,width:"100%",textAlign:"center",boxShadow:"0 24px 64px rgba(0,0,0,.8)"}}>
+        <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${C.gold},transparent)`,borderRadius:"2px 2px 0 0"}}/>
+        <div style={{width:54,height:54,borderRadius:"50%",background:"rgba(217,79,79,.1)",border:"1px solid rgba(217,79,79,.3)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 18px"}}>
+          <Ic n="trash" size={22} color={C.red}/>
+        </div>
+        <div style={{color:C.text,fontSize:18,fontWeight:700,fontFamily:"'Cormorant Garamond',serif",marginBottom:10}}>Ջնջե՞լ</div>
+        <div style={{color:C.textSub,fontSize:14,marginBottom:26,lineHeight:1.65}}>{msg}</div>
+        <div style={{display:"flex",gap:10}}>
+          <button className="bp" onClick={onCancel} style={{flex:1,padding:"13px",borderRadius:10,background:C.surface,border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Jost',sans-serif",fontWeight:600,fontSize:14,cursor:"pointer"}}>Չեղարկել</button>
+          <button className="bp" onClick={onOk} style={{flex:1,padding:"13px",borderRadius:10,background:"rgba(217,79,79,.16)",border:"1px solid rgba(217,79,79,.35)",color:C.red,fontFamily:"'Jost',sans-serif",fontWeight:700,fontSize:14,cursor:"pointer"}}>Ջնջել</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Btn({children,onClick,v="gold",sz="md",full,style={},disabled,C}){
+  const b={display:"flex",alignItems:"center",justifyContent:"center",gap:8,border:"none",cursor:disabled?"not-allowed":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:600,letterSpacing:.3,transition:"all .2s",opacity:disabled?.45:1};
+  const V={gold:{background:`linear-gradient(135deg,${C.gold},${C.goldD})`,color:"#06060c",boxShadow:`0 4px 18px ${C.goldGlow}`},ghost:{background:C.card,color:C.textSub,border:`1px solid ${C.border}`},danger:{background:"rgba(217,79,79,.1)",color:C.red,border:"1px solid rgba(217,79,79,.28)"},green:{background:C.green,color:"#fff"},dim:{background:C.surface,color:C.muted,border:`1px solid ${C.border}`}};
+  const S={sm:{padding:"8px 14px",borderRadius:8,fontSize:12},md:{padding:"12px 20px",borderRadius:10,fontSize:14},lg:{padding:"14px 26px",borderRadius:12,fontSize:15}};
+  return <button className="bp" onClick={disabled?undefined:onClick} style={{...b,...V[v],...S[sz],width:full?"100%":undefined,...style}}>{children}</button>;
+}
+
+function GBadge({id,C}){
+  const g=GENRES.find(x=>x.id===id)||GENRES[0];
+  return <span style={{background:C.goldL,border:`1px solid ${C.gold}33`,borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:600,color:C.gold,letterSpacing:.3}}>{g.icon} {g.label}</span>;
+}
+
+function Inp({value,onChange,placeholder,type="text",style={},C}){
+  const s={width:"100%",padding:"12px 14px",borderRadius:10,background:C.surface,border:`1.5px solid ${C.border}`,color:C.text,fontSize:14,outline:"none",fontFamily:"'Jost',sans-serif",marginBottom:10,transition:"border-color .2s,box-shadow .2s"};
+  return <input value={value} onChange={onChange} placeholder={placeholder} type={type} style={{...s,...style}}
+    onFocus={e=>{e.target.style.borderColor=C.gold;e.target.style.boxShadow=`0 0 0 3px ${C.goldGlow}`;}}
+    onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/>;
+}
+function TA({value,onChange,placeholder,rows=3,C}){
+  const s={width:"100%",padding:"12px 14px",borderRadius:10,background:C.surface,border:`1.5px solid ${C.border}`,color:C.text,fontSize:14,outline:"none",fontFamily:"'Jost',sans-serif",marginBottom:10,resize:"none",lineHeight:1.7,transition:"border-color .2s,box-shadow .2s"};
+  return <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={s}
+    onFocus={e=>{e.target.style.borderColor=C.gold;e.target.style.boxShadow=`0 0 0 3px ${C.goldGlow}`;}}
+    onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/>;
+}
+
+/* VIDEO PLAYER */
+function VideoPlayer({src,title,onClose,C}){
+  useEffect(()=>{
+    document.body.style.overflow="hidden";
+    return()=>{document.body.style.overflow="";};
+  },[]);
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:950,background:"#000",display:"flex",flexDirection:"column",animation:"fadeIn .18s"}}>
+      <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,transparent,${C.gold},transparent)`,zIndex:2,pointerEvents:"none"}}/>
+      <div style={{position:"absolute",top:0,left:0,right:0,padding:"14px 18px",display:"flex",alignItems:"center",gap:12,background:"linear-gradient(to bottom,rgba(0,0,0,.9) 0%,transparent 100%)",zIndex:2}}>
+        <button className="bp" onClick={onClose}
+          style={{background:"rgba(20,20,30,.85)",backdropFilter:"blur(14px)",border:`1px solid rgba(255,255,255,.15)`,borderRadius:10,padding:"9px 18px",cursor:"pointer",display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
+          <Ic n="back" size={16} color="#fff"/>
+          <span style={{color:"#fff",fontSize:13,fontWeight:600,letterSpacing:.2}}>Հետ</span>
+        </button>
+        {title&&<div style={{color:"rgba(255,255,255,.65)",fontSize:16,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"'Cormorant Garamond',serif"}}>{title}</div>}
+      </div>
+      <video src={src} controls autoPlay playsInline style={{width:"100%",height:"100%",objectFit:"contain",display:"block"}}/>
+    </div>
+  );
+}
+
+/* MOVIE CARD */
+function MCard({movie,allRatings,watchlist,onWatchlist,onEdit,onClick,delay=0,C}){
+  const rs=allRatings[movie.id]||[];
+  const avg=avgRating(rs);
+  const disp=avg||movie.rating?.toFixed(1);
+  const isWL=watchlist?.has(movie.id);
+  return(
+    <div className="cl aSC" onClick={onClick}
+      style={{position:"relative",borderRadius:14,overflow:"hidden",aspectRatio:"2/3",background:C.card,animationDelay:`${delay}s`,boxShadow:`0 8px 28px rgba(0,0,0,.55),0 1px 0 ${C.border} inset`}}>
+      <img src={movie.poster} alt={movie.title} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} onError={e=>{e.target.src=`https://picsum.photos/seed/${movie.id}x/300/450`;}}/>
+      <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(6,6,12,.97) 0%,rgba(6,6,12,.05) 55%,transparent 100%)"}}/>
+      <div style={{position:"absolute",top:0,left:0,right:0,height:2,overflow:"hidden"}}>
+        <div style={{height:"100%",width:"40%",background:`linear-gradient(90deg,transparent,${C.gold},transparent)`,animation:"shimmer 3.5s ease infinite"}}/>
+      </div>
+      {onWatchlist&&<button className="bp" onClick={e=>{e.stopPropagation();onWatchlist(movie.id);}} style={{position:"absolute",top:8,right:8,background:"rgba(6,6,12,.82)",backdropFilter:"blur(10px)",border:`1px solid ${isWL?C.gold+"55":C.border}`,borderRadius:8,padding:7,cursor:"pointer",display:"flex"}}><Ic n={isWL?"bookmarkF":"bookmark"} size={14} color={isWL?C.gold:C.muted}/></button>}
+      {onEdit&&<button className="bp" onClick={e=>{e.stopPropagation();onEdit(movie);}} style={{position:"absolute",top:8,left:8,background:C.goldL,backdropFilter:"blur(10px)",border:`1px solid ${C.gold}33`,borderRadius:7,padding:7,cursor:"pointer",display:"flex"}}><Ic n="edit" size={12} color={C.gold}/></button>}
+      {movie.videoUrl&&<div style={{position:"absolute",top:8,left:onEdit?40:8,background:`linear-gradient(135deg,${C.gold},${C.goldD})`,borderRadius:6,padding:"3px 7px",display:"flex",alignItems:"center",gap:3}}><Ic n="play" size={9} color="#06060c"/><span style={{fontSize:8,fontWeight:800,color:"#06060c"}}>VIDEO</span></div>}
+      <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"10px 10px"}}>
+        <GBadge id={movie.genre} C={C}/>
+        <div style={{color:C.text,fontWeight:700,lineHeight:1.25,margin:"5px 0 4px",fontFamily:"'Cormorant Garamond',serif",fontSize:14}}>{movie.title}</div>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <span style={{color:C.muted,fontSize:10}}>{movie.year}</span>
+          {disp&&<><span style={{color:C.border}}>·</span><span style={{color:C.gold,fontSize:10,display:"flex",gap:2,alignItems:"center"}}><Ic n="starF" size={9} color={C.gold}/>{disp}</span></>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* MOVIE FORM */
+function MForm({initial,onSave,onCancel,title="Ավելացնել",C}){
+  const blank={title:"",year:new Date().getFullYear(),genre:"drama",poster:"",videoUrl:"",videoName:"",description:"",duration:"",director:"",language:"Անգլերեն",price:2800};
+  const[form,setForm]=useState(initial?{...initial}:{...blank});
+  const[saving,setSaving]=useState(false);
+  const posterRef=useRef();
+  const videoRef=useRef();
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const iSt={width:"100%",padding:"12px 14px",borderRadius:10,background:C.surface,border:`1.5px solid ${C.border}`,color:C.text,fontSize:14,outline:"none",fontFamily:"'Jost',sans-serif",marginBottom:10,transition:"border-color .2s",appearance:"none"};
+  const fo=e=>e.target.style.borderColor=C.gold;
+  const fb=e=>e.target.style.borderColor=C.border;
+
+  const handlePoster=e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=ev=>set("poster",ev.target.result);r.readAsDataURL(f);};
+  const handleVideo=e=>{
+    const f=e.target.files?.[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      setForm(fm=>({...fm,videoUrl:ev.target.result,videoName:f.name}));
+    };
+    r.readAsDataURL(f);
+  };
+  const handleSave=()=>{
+    if(!form.title.trim())return;setSaving(true);
+    setTimeout(()=>{onSave({...form,year:Number(form.year),price:Number(form.price)});setSaving(false);},380);
+  };
+
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+        <span style={{color:C.text,fontWeight:700,fontFamily:"'Cormorant Garamond',serif",fontSize:20}}>{title}</span>
+        {onCancel&&<button className="bp" onClick={onCancel} style={{background:"none",border:"none",cursor:"pointer",padding:4}}><Ic n="x" size={19} color={C.muted}/></button>}
+      </div>
+
+      {form.poster&&<div style={{borderRadius:12,overflow:"hidden",aspectRatio:"16/7",marginBottom:12,background:C.surface}}><img src={form.poster} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>set("poster","")}/></div>}
+      <input ref={posterRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePoster}/>
+      <div style={{display:"flex",gap:8,marginBottom:10}}>
+        <input value={form.poster?.startsWith("data:")?"":form.poster||""} onChange={e=>set("poster",e.target.value)} placeholder="Poster URL" style={{...iSt,flex:1,marginBottom:0}} onFocus={fo} onBlur={fb}/>
+        <button className="bp" onClick={()=>posterRef.current?.click()} style={{flexShrink:0,padding:"12px 14px",borderRadius:10,background:C.goldL,border:`1px solid ${C.gold}44`,cursor:"pointer",display:"flex",alignItems:"center"}}><Ic n="upload" size={16} color={C.gold}/></button>
+      </div>
+
+      <input ref={videoRef} type="file" accept="video/*" style={{display:"none"}} onChange={handleVideo}/>
+      <div style={{marginBottom:12}}>
+        <div style={{color:C.muted,fontSize:11,fontWeight:600,letterSpacing:.5,marginBottom:6,textTransform:"uppercase"}}>Թրեյլեր / Video</div>
+        <button className="bp" onClick={()=>videoRef.current?.click()}
+          style={{width:"100%",padding:"14px 16px",borderRadius:10,background:form.videoUrl?C.goldL:C.surface,border:`1.5px ${form.videoUrl?"solid":"dashed"} ${form.videoUrl?C.gold:C.border}`,color:form.videoUrl?C.gold:C.muted,fontFamily:"'Jost',sans-serif",fontWeight:600,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"all .2s"}}>
+          <Ic n="video" size={18} color={form.videoUrl?C.gold:C.muted}/>
+          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,textAlign:"left"}}>
+            {form.videoName||"Ընտրել վիդեո ֆայլը համակարգից..."}
+          </span>
+          {form.videoUrl&&<span style={{fontSize:9,background:C.green,color:"#fff",borderRadius:5,padding:"3px 8px",flexShrink:0,fontWeight:700}}>✓ OK</span>}
+        </button>
+        {form.videoUrl&&(
+          <button className="bp" onClick={()=>setForm(fm=>({...fm,videoUrl:"",videoName:""}))}
+            style={{marginTop:6,padding:"6px 12px",borderRadius:8,background:"rgba(217,79,79,.08)",border:"1px solid rgba(217,79,79,.25)",color:C.red,fontFamily:"'Jost',sans-serif",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
+            <Ic n="x" size={11} color={C.red}/>Հեռացնել վիդեոն
+          </button>
+        )}
+      </div>
+
+      <Inp value={form.title} onChange={e=>set("title",e.target.value)} placeholder="Ֆիլմի անունը *" C={C}/>
+      <div style={{display:"flex",gap:8}}>
+        <Inp value={form.year} onChange={e=>set("year",e.target.value)} placeholder="Տարին" type="number" style={{flex:1}} C={C}/>
+        <select value={form.genre} onChange={e=>set("genre",e.target.value)} style={{...iSt,flex:2,cursor:"pointer"}} onFocus={fo} onBlur={fb}>
+          {GENRES.filter(g=>g.id!=="all").map(g=><option key={g.id} value={g.id}>{g.icon} {g.label}</option>)}
+        </select>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <Inp value={form.duration} onChange={e=>set("duration",e.target.value)} placeholder="2ժ 10ր" style={{flex:1}} C={C}/>
+        <Inp value={form.director} onChange={e=>set("director",e.target.value)} placeholder="Ռեժիսոր" style={{flex:1}} C={C}/>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <Inp value={form.language} onChange={e=>set("language",e.target.value)} placeholder="Լեզուն" style={{flex:1}} C={C}/>
+        <Inp value={form.price} onChange={e=>set("price",e.target.value)} type="number" placeholder="Գին (֏)" style={{flex:1}} C={C}/>
+      </div>
+      <TA value={form.description} onChange={e=>set("description",e.target.value)} placeholder="Նկարագրություն..." C={C}/>
+      <div style={{display:"flex",gap:9,marginTop:4}}>
+        {onCancel&&<Btn v="ghost" onClick={onCancel} full C={C}><Ic n="x" size={14} color={C.muted}/>Չեղարկել</Btn>}
+        <Btn v={saving?"green":"gold"} onClick={handleSave} full disabled={saving} C={C}>
+          {saving?<><Ic n="check" size={15} color="#000"/>Պահվում է...</>:<><Ic n="save" size={15} color="#06060c"/>{initial?"Թարմացնել":"Ավելացնել"}</>}
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
+function EditModal({movie,onSave,onClose,C}){
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:700,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={onClose}>
+      <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.88)",backdropFilter:"blur(22px)",animation:"fadeIn .22s"}}/>
+      <div className="aSU" onClick={e=>e.stopPropagation()}
+        style={{position:"relative",width:"100%",maxWidth:560,background:C.surface,borderRadius:"24px 24px 0 0",border:`1px solid ${C.border}`,borderBottom:"none",maxHeight:"92vh",overflowY:"auto",boxShadow:`0 -16px 56px rgba(0,0,0,.65),0 0 0 1px ${C.gold}18`}}>
+        <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${C.gold},transparent)`,borderRadius:"2px 2px 0 0"}}/>
+        <div style={{width:46,height:4,borderRadius:4,background:C.border,margin:"16px auto 0"}}/>
+        <div style={{padding:"16px 24px 48px"}}><MForm initial={movie} onSave={onSave} onCancel={onClose} title="Խմբագրել Ֆիլմ" C={C}/></div>
+      </div>
+    </div>
+  );
+}
+
+/* PAGE HOME */
+function PageHome({movies,allRatings,watchlist,onWatchlist,onEdit,onSelect,C}){
+  const sorted=[...movies].sort((a,b)=>b.addedAt-a.addedAt);
+  const[featured]=sorted;
+  const topRated=[...movies].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0)).slice(0,8);
+  const recent=sorted.slice(1,10);
+  return(
+    <div className="aFI" style={{paddingBottom:104}}>
+      {featured&&(
+        <div onClick={()=>onSelect(featured)} style={{position:"relative",height:"min(74vh,520px)",overflow:"hidden",cursor:"pointer"}}>
+          <img src={featured.poster} alt={featured.title} style={{width:"100%",height:"100%",objectFit:"cover",display:"block",filter:"brightness(.5) saturate(.75)"}} onError={e=>{e.target.src=`https://picsum.photos/seed/${featured.id}/900/500`;}}/>
+          <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(6,6,12,1) 0%,rgba(6,6,12,.52) 50%,rgba(6,6,12,.06) 100%)"}}/>
+          <div style={{position:"absolute",inset:0,background:"linear-gradient(to right,rgba(6,6,12,.72) 0%,transparent 65%)"}}/>
+          <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,transparent,${C.gold}88,${C.gold},${C.gold}88,transparent)`}}/>
+          <div style={{position:"absolute",top:22,left:22,display:"flex",gap:8,alignItems:"center"}}>
+            <span style={{background:C.gold,borderRadius:5,padding:"4px 12px",color:"#06060c",fontSize:9,fontWeight:800,letterSpacing:3}}>ՆՈՐ</span>
+          </div>
+          {onEdit&&<button className="bp" onClick={e=>{e.stopPropagation();onEdit(featured);}} style={{position:"absolute",top:22,right:22,background:C.goldL,backdropFilter:"blur(12px)",border:`1px solid ${C.gold}44`,borderRadius:10,padding:"9px 16px",cursor:"pointer",display:"flex",gap:6,alignItems:"center"}}><Ic n="edit" size={15} color={C.gold}/><span style={{color:C.gold,fontSize:13,fontWeight:600}}>Խմբագրել</span></button>}
+          <div style={{position:"absolute",bottom:0,padding:"0 28px 36px",animation:"slideUp .5s .1s both"}}>
+            {featured.rating&&<div style={{display:"flex",gap:3,alignItems:"center",marginBottom:12}}>{[1,2,3,4,5].map(s=><Ic key={s} n={s<=Math.round(featured.rating)?"starF":"star"} size={15} color={C.gold}/>)}<span style={{color:C.gold,fontSize:14,fontWeight:700,marginLeft:6}}>{featured.rating}</span><span style={{color:C.muted,fontSize:12,marginLeft:2}}>IMDb</span></div>}
+            <h1 style={{color:C.text,fontSize:"clamp(26px,5vw,44px)",fontWeight:700,lineHeight:1.05,fontFamily:"'Cormorant Garamond',serif",marginBottom:10,textShadow:"0 4px 24px rgba(0,0,0,.85)"}}>{featured.title}</h1>
+            <p style={{color:"rgba(242,237,228,.6)",fontSize:14,marginBottom:20,maxWidth:480,lineHeight:1.75,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{featured.description}</p>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              {featured.duration&&<span style={{background:"rgba(6,6,12,.72)",backdropFilter:"blur(10px)",border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 14px",color:C.textSub,fontSize:12,display:"flex",gap:5,alignItems:"center"}}><Ic n="clock" size={12} color={C.muted}/>{featured.duration}</span>}
+              <div style={{background:`linear-gradient(135deg,${C.gold},${C.goldD})`,borderRadius:10,padding:"10px 22px",display:"flex",gap:8,alignItems:"center",boxShadow:`0 4px 18px ${C.goldGlow}`}}><Ic n="play" size={17} color="#06060c"/><span style={{color:"#06060c",fontWeight:700,fontSize:14}}>Դիտել</span></div>
+              {onWatchlist&&<button className="bp" onClick={e=>{e.stopPropagation();onWatchlist(featured.id);}} style={{background:"rgba(6,6,12,.72)",backdropFilter:"blur(10px)",border:`1px solid ${watchlist?.has(featured.id)?C.gold+"55":C.border}`,borderRadius:10,padding:"10px 18px",cursor:"pointer",display:"flex",gap:7,alignItems:"center"}}><Ic n={watchlist?.has(featured.id)?"bookmarkF":"bookmark"} size={16} color={watchlist?.has(featured.id)?C.gold:C.muted}/><span style={{color:C.muted,fontSize:13,fontWeight:600}}>Ցուցակ</span></button>}
+            </div>
+          </div>
+        </div>
+      )}
+      <div style={{padding:"28px 20px 0"}}>
+        <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:16}}><h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:23,fontWeight:700,color:C.text}}>Լավագույնները</h2><div style={{flex:1,height:1,background:`linear-gradient(90deg,${C.border},transparent)`}}/><Ic n="starF" size={15} color={C.gold}/></div>
+        <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:8,scrollbarWidth:"none"}}>
+          {topRated.map((m,i)=><div key={m.id} style={{flexShrink:0,width:128}}><MCard movie={m} allRatings={allRatings} watchlist={watchlist} onWatchlist={onWatchlist} onEdit={onEdit?()=>onEdit(m):null} onClick={()=>onSelect(m)} delay={i*.04} C={C}/></div>)}
+        </div>
+      </div>
+      <div style={{padding:"26px 20px 0"}}>
+        <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:16}}><h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:23,fontWeight:700,color:C.text}}>Նոր Ավելացվածները</h2><div style={{flex:1,height:1,background:`linear-gradient(90deg,${C.border},transparent)`}}/><Ic n="film" size={15} color={C.muted}/></div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(138px,1fr))",gap:14}}>
+          {recent.map((m,i)=><MCard key={m.id} movie={m} allRatings={allRatings} watchlist={watchlist} onWatchlist={onWatchlist} onEdit={onEdit?()=>onEdit(m):null} onClick={()=>onSelect(m)} delay={i*.04} C={C}/>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* PAGE MOVIES */
+function PageMovies({movies,allRatings,watchlist,onWatchlist,onEdit,onSelect,C}){
+  const[q,setQ]=useState("");
+  const[genre,setGenre]=useState("all");
+  const[sort,setSort]=useState("new");
+  const filtered=movies.filter(m=>{const mq=!q||m.title.toLowerCase().includes(q.toLowerCase())||(m.director||"").toLowerCase().includes(q.toLowerCase());return mq&&(genre==="all"||m.genre===genre);}).sort((a,b)=>sort==="new"?b.addedAt-a.addedAt:sort==="rating"?(Number(b.rating)||0)-(Number(a.rating)||0):b.year-a.year);
+  return(
+    <div className="aFI" style={{padding:"20px 20px 104px"}}>
+      <div style={{position:"relative",marginBottom:14}}>
+        <div style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)"}}><Ic n="search" size={17} color={C.muted}/></div>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Ֆիլմ, ռեժիսոր..."
+          style={{width:"100%",padding:"13px 42px",borderRadius:12,background:C.surface,border:`1.5px solid ${q?C.gold:C.border}`,color:C.text,fontSize:14,outline:"none",fontFamily:"'Jost',sans-serif",transition:"all .2s"}}
+          onFocus={e=>e.target.style.borderColor=C.gold} onBlur={e=>{if(!q)e.target.style.borderColor=C.border;}}/>
+        {q&&<button onClick={()=>setQ("")} style={{position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",padding:0,display:"flex"}}><Ic n="x" size={17} color={C.muted}/></button>}
+      </div>
+      <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:12,marginBottom:10,scrollbarWidth:"none"}}>
+        {GENRES.map(g=><button key={g.id} onClick={()=>setGenre(g.id)} className="bp" style={{flexShrink:0,padding:"7px 13px",borderRadius:24,background:genre===g.id?C.gold:C.card,color:genre===g.id?"#06060c":C.muted,border:`1.5px solid ${genre===g.id?C.gold:C.border}`,cursor:"pointer",fontSize:12,fontWeight:600,whiteSpace:"nowrap",fontFamily:"'Jost',sans-serif",display:"flex",gap:4,alignItems:"center",transition:"all .18s"}}>{g.icon} {g.label}</button>)}
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <span style={{color:C.muted,fontSize:12}}>{filtered.length} ֆիլմ</span>
+        <div style={{display:"flex",gap:6}}>
+          {[["new","Նոր"],["rating","Ռեյտինգ"],["year","Տարի"]].map(([sv,lb])=><button key={sv} onClick={()=>setSort(sv)} className="bp" style={{padding:"6px 13px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"'Jost',sans-serif",background:sort===sv?C.goldL:C.card,color:sort===sv?C.gold:C.muted,border:`1px solid ${sort===sv?C.gold+"44":C.border}`}}>{lb}</button>)}
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(138px,1fr))",gap:14}}>
+        {filtered.map((m,i)=><MCard key={m.id} movie={m} allRatings={allRatings} watchlist={watchlist} onWatchlist={onWatchlist} onEdit={onEdit?()=>onEdit(m):null} onClick={()=>onSelect(m)} delay={i*.04} C={C}/>)}
+      </div>
+      {filtered.length===0&&<div className="aFI" style={{textAlign:"center",padding:"72px 0",color:C.muted}}><Ic n="search" size={50} color={C.border} style={{margin:"0 auto 14px"}}/><div style={{fontSize:16,fontWeight:600,color:C.textSub}}>Ֆիլմ չգտնվեց</div></div>}
+    </div>
+  );
+}
+
+/* PAGE WATCHLIST */
+function PageWatchlist({movies,allRatings,watchlist,onWatchlist,onEdit,onSelect,C}){
+  const wl=movies.filter(m=>watchlist.has(m.id));
+  return(
+    <div className="aFI" style={{padding:"20px 20px 104px"}}>
+      <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:20}}><h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:700,color:C.text}}>Ցուցակի ֆիլմերը</h2><span style={{background:C.goldL,border:`1px solid ${C.gold}33`,borderRadius:22,padding:"3px 12px",color:C.gold,fontSize:13,fontWeight:700}}>{wl.length}</span></div>
+      {wl.length===0?(
+        <div style={{textAlign:"center",padding:"84px 0",color:C.muted}}>
+          <div style={{width:84,height:84,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px"}}><Ic n="bookmark" size={36} color={C.border}/></div>
+          <h3 style={{fontSize:18,fontWeight:700,color:C.textSub,fontFamily:"'Cormorant Garamond',serif",marginBottom:9}}>Ցուցակը դատարկ է</h3>
+          <div style={{fontSize:14,lineHeight:1.7}}>Ֆիլմի 🔖 պատկերով պահելու համար</div>
+        </div>
+      ):(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(138px,1fr))",gap:14}}>
+          {wl.map((m,i)=><MCard key={m.id} movie={m} allRatings={allRatings} watchlist={watchlist} onWatchlist={onWatchlist} onEdit={onEdit?()=>onEdit(m):null} onClick={()=>onSelect(m)} delay={i*.05} C={C}/>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* PAGE DETAIL */
+function PageDetail({movie,curUser,allRatings,allComments,watchlist,onRate,onComment,onWatchlist,onBack,onDelete,onEdit,C}){
+  const[text,setText]=useState("");
+  const[showVideo,setShowVideo]=useState(false);
+  const[confirmDel,setConfirmDel]=useState(false);
+  const rs=allRatings[movie.id]||[];
+  const avg=avgRating(rs);
+  const disp=avg||movie.rating?.toFixed(1);
+  const myStars=curUser?(rs.find(r=>r.userId===curUser.id)?.stars||0):0;
+  const comments=(allComments[movie.id]||[]).slice().reverse();
+  const isWL=watchlist?.has(movie.id);
+  return(
+    <div className="aFI" style={{paddingBottom:60}}>
+      <div style={{position:"relative",height:"min(66vh,460px)",overflow:"hidden"}}>
+        <img src={movie.poster} alt={movie.title} style={{width:"100%",height:"100%",objectFit:"cover",display:"block",filter:"brightness(.48) saturate(.72)"}} onError={e=>{e.target.src=`https://picsum.photos/seed/${movie.id}/900/500`;}}/>
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(6,6,12,1) 0%,rgba(6,6,12,.38) 55%,transparent 100%)"}}/>
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(to right,rgba(6,6,12,.68) 0%,transparent 62%)"}}/>
+        <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,transparent,${C.gold},transparent)`}}/>
+        <button className="bp" onClick={onBack} style={{position:"absolute",top:18,left:18,background:"rgba(6,6,12,.82)",backdropFilter:"blur(14px)",border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 16px",cursor:"pointer",display:"flex",gap:8,alignItems:"center"}}>
+          <Ic n="back" size={16} color={C.text}/><span style={{color:C.text,fontSize:13,fontWeight:500}}>Հետ</span>
+        </button>
+        <div style={{position:"absolute",top:18,right:18,display:"flex",gap:8}}>
+          {curUser&&onWatchlist&&<button className="bp" onClick={()=>onWatchlist(movie.id)} style={{background:isWL?C.goldL:"rgba(6,6,12,.82)",backdropFilter:"blur(14px)",border:`1px solid ${isWL?C.gold+"55":C.border}`,borderRadius:10,padding:11,cursor:"pointer",display:"flex"}}><Ic n={isWL?"bookmarkF":"bookmark"} size={19} color={isWL?C.gold:C.muted}/></button>}
+          {curUser?.isAdmin&&<><button className="bp" onClick={()=>onEdit(movie)} style={{background:C.goldL,backdropFilter:"blur(14px)",border:`1px solid ${C.gold}44`,borderRadius:10,padding:11,cursor:"pointer",display:"flex"}}><Ic n="edit" size={19} color={C.gold}/></button><button className="bp" onClick={()=>setConfirmDel(true)} style={{background:"rgba(217,79,79,.82)",border:"none",borderRadius:10,padding:11,cursor:"pointer",display:"flex"}}><Ic n="trash" size={19} color="#fff"/></button></>}
+        </div>
+        <div style={{position:"absolute",bottom:0,padding:"0 24px 28px",animation:"slideUp .4s both"}}>
+          <div style={{marginBottom:10}}><GBadge id={movie.genre} C={C}/></div>
+          {disp&&<div style={{display:"flex",gap:3,alignItems:"center",marginBottom:10}}>{[1,2,3,4,5].map(s=><Ic key={s} n={s<=Math.round(Number(disp))?"starF":"star"} size={16} color={C.gold}/>)}<span style={{color:C.gold,fontSize:15,fontWeight:700,marginLeft:6}}>{disp}</span></div>}
+          <h1 style={{color:C.text,fontSize:"clamp(24px,5vw,38px)",fontWeight:700,lineHeight:1.1,fontFamily:"'Cormorant Garamond',serif",textShadow:"0 4px 20px rgba(0,0,0,.9)"}}>{movie.title}</h1>
+          <div style={{color:C.textSub,fontSize:12,marginTop:6}}>{movie.year}</div>
+        </div>
+      </div>
+
+      <div style={{padding:"20px 24px"}}>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:20}}>
+          {movie.duration&&<div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:9,padding:"7px 13px",display:"flex",gap:6,alignItems:"center"}}><Ic n="clock" size={13} color={C.muted}/><span style={{color:C.textSub,fontSize:13}}>{movie.duration}</span></div>}
+          {movie.director&&<div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:9,padding:"7px 13px",display:"flex",gap:6,alignItems:"center"}}><Ic n="film" size={13} color={C.muted}/><span style={{color:C.textSub,fontSize:13}}>{movie.director}</span></div>}
+          {movie.language&&<div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:9,padding:"7px 13px",display:"flex",gap:6,alignItems:"center"}}><Ic n="globe" size={13} color={C.muted}/><span style={{color:C.textSub,fontSize:13}}>{movie.language}</span></div>}
+          {movie.price&&<div style={{background:C.goldL,border:`1px solid ${C.gold}44`,borderRadius:9,padding:"7px 13px",display:"flex",gap:6,alignItems:"center"}}><Ic n="ticket" size={13} color={C.gold}/><span style={{color:C.gold,fontSize:13,fontWeight:700}}>{movie.price?.toLocaleString()} ֏</span></div>}
+        </div>
+
+        {movie.videoUrl?(
+          <button className="bp" onClick={()=>setShowVideo(true)}
+            style={{width:"100%",padding:"17px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${C.gold},${C.goldD})`,color:"#06060c",fontFamily:"'Jost',sans-serif",fontWeight:800,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:20,boxShadow:`0 6px 28px ${C.goldGlow}`,letterSpacing:.3}}>
+            <Ic n="play" size={24} color="#06060c"/>
+            ▶ &nbsp;Դիտել Թրեյլերը
+          </button>
+        ):(
+          <div style={{width:"100%",padding:"15px",borderRadius:14,border:`1.5px dashed ${C.border}`,background:C.card,color:C.muted,fontFamily:"'Jost',sans-serif",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:20}}>
+            <Ic n="video" size={16} color={C.muted}/>Տեսանյութը չի ավելացվել
+          </div>
+        )}
+
+        <p style={{color:C.textSub,fontSize:15,lineHeight:1.85,marginBottom:24}}>{movie.description}</p>
+
+        <div style={{background:C.card,borderRadius:16,padding:20,border:`1px solid ${C.border}`,marginBottom:24,position:"relative",overflow:"hidden"}}>
+          <div style={{position:"absolute",top:0,left:0,right:0,height:1,background:`linear-gradient(90deg,transparent,${C.gold}44,transparent)`}}/>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <span style={{color:C.text,fontWeight:700,fontFamily:"'Cormorant Garamond',serif",fontSize:20}}>Գնահատականներ</span>
+            {disp&&<span style={{color:C.gold,fontWeight:800,fontSize:26,fontFamily:"'Cormorant Garamond',serif"}}>★ {disp}</span>}
+          </div>
+          {curUser?(
+            <div>
+              <div style={{color:C.muted,fontSize:13,marginBottom:10}}>Ձեր գնահատականը (1–5 ★):</div>
+              <Stars value={myStars} onRate={s=>onRate(movie.id,s)} size={34} C={C}/>
+              {myStars>0&&<div style={{color:C.green,fontSize:13,marginTop:10,display:"flex",gap:6,alignItems:"center"}}><Ic n="check" size={13} color={C.green}/>Պահպանված · {myStars} ★</div>}
+            </div>
+          ):(
+            <div style={{color:C.muted,fontSize:14,display:"flex",gap:7,alignItems:"center",padding:"10px 0"}}><Ic n="lock" size={15} color={C.muted}/>Գնահատելու համար մուտք գործեք</div>
+          )}
+        </div>
+
+        <div>
+          <div style={{display:"flex",alignItems:"baseline",gap:10,marginBottom:16}}><h3 style={{color:C.text,fontWeight:700,fontFamily:"'Cormorant Garamond',serif",fontSize:20}}>Մեկնաբանություններ</h3><span style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:22,padding:"2px 10px",color:C.muted,fontSize:12}}>{(allComments[movie.id]||[]).length}</span></div>
+          {curUser?(
+            <div style={{marginBottom:18}}>
+              <TA value={text} onChange={e=>setText(e.target.value)} placeholder="Գրել ձեր մեկնաբանությունը..." C={C}/>
+              <Btn v={text.trim()?"gold":"ghost"} onClick={()=>{if(text.trim()){onComment(movie.id,text.trim());setText("");}}} disabled={!text.trim()} C={C}><Ic n="send" size={15} color={text.trim()?"#06060c":C.muted}/>Հրապարակել</Btn>
+            </div>
+          ):(
+            <div style={{background:C.card,borderRadius:12,padding:16,border:`1px solid ${C.border}`,color:C.muted,fontSize:14,textAlign:"center",marginBottom:16,display:"flex",gap:7,alignItems:"center",justifyContent:"center"}}><Ic n="lock" size={15} color={C.muted}/>Մեկնաբանելու համար մուտք գործեք</div>
+          )}
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {comments.map((c,i)=>(
+              <div key={c.id} className="aSU" style={{background:C.card,borderRadius:14,padding:"15px 17px",border:`1px solid ${C.border}`,animationDelay:`${i*.05}s`,position:"relative",overflow:"hidden"}}>
+                <div style={{position:"absolute",left:0,top:0,bottom:0,width:2,background:`linear-gradient(to bottom,${C.gold}66,transparent)`}}/>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}>
+                  <div style={{display:"flex",gap:9,alignItems:"center"}}><div style={{width:30,height:30,borderRadius:"50%",background:`linear-gradient(135deg,${C.gold},${C.goldD})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:"#06060c"}}>{c.userName[0].toUpperCase()}</div><span style={{color:C.gold,fontWeight:700,fontSize:13}}>{c.userName}</span></div>
+                  <span style={{color:C.muted,fontSize:11}}>{new Date(c.createdAt).toLocaleDateString("hy-AM")}</span>
+                </div>
+                <p style={{color:C.text,fontSize:14,lineHeight:1.65,margin:0,paddingLeft:4}}>{c.text}</p>
+              </div>
+            ))}
+            {comments.length===0&&<div style={{color:C.muted,fontSize:14,textAlign:"center",padding:"28px 0"}}>Մեկնաբանություններ չկան: Եղեք առաջինը:</div>}
+          </div>
+        </div>
+      </div>
+
+      {showVideo&&movie.videoUrl&&<VideoPlayer src={movie.videoUrl} title={movie.title} onClose={()=>setShowVideo(false)} C={C}/>}
+      {confirmDel&&<Confirm msg={`"${movie.title}" ֆիլմը ջնջե՞լ`} onOk={()=>{setConfirmDel(false);onDelete(movie.id);}} onCancel={()=>setConfirmDel(false)} C={C}/>}
+    </div>
+  );
+}
+
+/* PAGE ADMIN */
+function PageAdmin({movies,onAdd,onDelete,onEdit,C}){
+  const[ok,setOk]=useState(false);
+  const[confirm,setConfirm]=useState(null);
+  const handleAdd=m=>{onAdd({...m,id:uid(),addedAt:Date.now()});setOk(true);setTimeout(()=>setOk(false),2800);};
+  return(
+    <div className="aFI" style={{padding:"20px 20px 104px"}}>
+      <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:24}}>
+        <div style={{width:42,height:42,borderRadius:10,background:C.goldL,border:`1px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center"}}><Ic n="gear" size={20} color={C.gold}/></div>
+        <div><h2 style={{color:C.text,fontSize:20,fontWeight:700,fontFamily:"'Cormorant Garamond',serif"}}>Admin վահանակ</h2><div style={{color:C.muted,fontSize:12}}>{movies.length} ֆիլմ ցանկում</div></div>
+      </div>
+      <div style={{background:C.card,borderRadius:18,padding:22,border:`1px solid ${C.border}`,marginBottom:28,position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${C.gold},transparent)`}}/>
+        {ok?(
+          <div className="aSC" style={{textAlign:"center",padding:"34px 0",display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+            <div style={{width:64,height:64,borderRadius:"50%",background:C.green,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 6px 24px ${C.green}44`}}><Ic n="check" size={30} color="#fff"/></div>
+            <div style={{color:C.text,fontWeight:700,fontSize:18,fontFamily:"'Cormorant Garamond',serif"}}>Ֆիլմը ավելացվեց!</div>
+          </div>
+        ):<MForm onSave={handleAdd} title="Ավելացնել Նոր Ֆիլմ" C={C}/>}
+      </div>
+      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:14}}><Ic n="list" size={16} color={C.muted}/><span style={{color:C.text,fontWeight:600,fontSize:14}}>Բոլոր ֆիլմերը ({movies.length})</span></div>
+      <div style={{display:"flex",flexDirection:"column",gap:9}}>
+        {movies.map((m,i)=>(
+          <div key={m.id} className="aSU" style={{background:C.card,borderRadius:14,padding:"12px 14px",border:`1px solid ${C.border}`,display:"flex",gap:12,alignItems:"center",animationDelay:`${i*.03}s`}}>
+            <div style={{width:42,height:58,borderRadius:8,overflow:"hidden",flexShrink:0,background:C.surface}}><img src={m.poster} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/></div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{color:C.text,fontWeight:700,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"'Cormorant Garamond',serif"}}>{m.title}</div>
+              <div style={{color:C.muted,fontSize:11,marginTop:2}}>{m.year} · {GENRES.find(g=>g.id===m.genre)?.label||m.genre}</div>
+              {m.videoUrl&&<div style={{color:C.green,fontSize:10,marginTop:2,display:"flex",gap:3,alignItems:"center"}}><Ic n="video" size={9} color={C.green}/>Տեսանյութ կա</div>}
+            </div>
+            <div style={{display:"flex",gap:7,flexShrink:0}}>
+              <button className="bp" onClick={()=>onEdit(m)} style={{padding:"9px 11px",borderRadius:9,background:C.goldL,border:`1px solid ${C.gold}33`,cursor:"pointer",display:"flex"}}><Ic n="edit" size={15} color={C.gold}/></button>
+              <button className="bp" onClick={()=>setConfirm(m)} style={{padding:"9px 11px",borderRadius:9,background:"rgba(217,79,79,.1)",border:"1px solid rgba(217,79,79,.28)",cursor:"pointer",display:"flex"}}><Ic n="trash" size={15} color={C.red}/></button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {confirm&&<Confirm msg={`"${confirm.title}" ջնջե՞լ`} onOk={()=>{onDelete(confirm.id);setConfirm(null);}} onCancel={()=>setConfirm(null)} C={C}/>}
+    </div>
+  );
+}
+
+/* PAGE AUTH */
+function PageAuth({onLogin,onRegister,onBack,error,C}){
+  const[mode,setMode]=useState("login");
+  const[username,setUsername]=useState("");
+  const[password,setPassword]=useState("");
+  const[showPwd,setShowPwd]=useState(false);
+  const submit=()=>{if(!username.trim()||!password.trim())return;mode==="login"?onLogin(username,password):onRegister(username,password);};
+  return(
+    <div className="aFI" style={{minHeight:"100vh",display:"flex",flexDirection:"column",justifyContent:"center",padding:"40px 28px",background:C.bg,position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",inset:0,background:`radial-gradient(ellipse at 50% 25%,${C.goldGlow} 0%,transparent 70%)`,pointerEvents:"none"}}/>
+      <button className="bp" onClick={onBack} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",marginBottom:28,alignSelf:"flex-start",padding:0,display:"flex",gap:7,alignItems:"center",position:"relative"}}><Ic n="back" size={16} color={C.muted}/><span style={{fontSize:14}}>Հետ</span></button>
+      <div style={{textAlign:"center",marginBottom:40,position:"relative"}}><div style={{display:"flex",justifyContent:"center",marginBottom:16}}><Logo h={46} C={C}/></div><div style={{color:C.muted,fontSize:14}}>{mode==="login"?"Մուտք Ձեր հաշիվ":"Ստեղծել նոր հաշիվ"}</div></div>
+      <div style={{maxWidth:400,width:"100%",margin:"0 auto",position:"relative"}}>
+        <div style={{display:"flex",background:C.card,borderRadius:14,padding:4,border:`1px solid ${C.border}`,marginBottom:24}}>
+          {[["login","Մուտք"],["register","Գրանցվել"]].map(([m,lb])=><button key={m} onClick={()=>setMode(m)} style={{flex:1,padding:"13px",borderRadius:11,background:mode===m?C.gold:"transparent",border:"none",color:mode===m?"#06060c":C.muted,fontWeight:700,cursor:"pointer",fontSize:14,transition:"all .25s",fontFamily:"'Jost',sans-serif"}}>{lb}</button>)}
+        </div>
+        <div style={{position:"relative",marginBottom:10}}><div style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)"}}><Ic n="user" size={16} color={C.muted}/></div><Inp value={username} onChange={e=>setUsername(e.target.value)} placeholder="Օգտանուն" style={{paddingLeft:44,marginBottom:0}} C={C}/></div>
+        <div style={{position:"relative",marginBottom:12}}>
+          <div style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)"}}><Ic n="lock" size={16} color={C.muted}/></div>
+          <Inp value={password} onChange={e=>setPassword(e.target.value)} placeholder="Գաղտնաբառ" type={showPwd?"text":"password"} style={{paddingLeft:44,paddingRight:48,marginBottom:0}} C={C}/>
+          <button onClick={()=>setShowPwd(x=>!x)} style={{position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",padding:0,display:"flex"}}><Ic n="eye" size={16} color={C.muted}/></button>
+        </div>
+        {error&&<div className="aSU" style={{color:C.red,fontSize:13,textAlign:"center",marginBottom:14,padding:"11px",borderRadius:10,background:"rgba(217,79,79,.08)",border:"1px solid rgba(217,79,79,.25)"}}>{error}</div>}
+        <Btn v="gold" sz="lg" full onClick={submit} style={{marginBottom:18}} C={C}><Ic n={mode==="login"?"logout":"user"} size={18} color="#06060c"/>{mode==="login"?"Մուտք Գործել":"Գրանցվել"}</Btn>
+      </div>
+    </div>
+  );
+}
+
+/* PAGE PROFILE */
+function PageProfile({curUser,allRatings,allComments,watchlist,onLogout,setView,C}){
+  const totalR=curUser?Object.values(allRatings).flat().filter(r=>r.userId===curUser.id).length:0;
+  const totalC=curUser?Object.values(allComments).flat().filter(c=>c.userId===curUser.id).length:0;
+  if(!curUser)return(
+    <div className="aFI" style={{textAlign:"center",padding:"100px 24px"}}>
+      <div style={{width:90,height:90,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px"}}><Ic n="user" size={40} color={C.border}/></div>
+      <h2 style={{color:C.text,fontSize:24,fontWeight:700,fontFamily:"'Cormorant Garamond',serif",marginBottom:10}}>Մուտք չի կատարվել</h2>
+      <p style={{color:C.muted,fontSize:14,marginBottom:28,lineHeight:1.7}}>Գնահատելու և մեկնաբանելու համար մուտք գործեք</p>
+      <Btn v="gold" sz="lg" onClick={()=>setView("auth")} C={C}><Ic n="logout" size={18} color="#06060c"/>Մուտք Գործել</Btn>
+    </div>
+  );
+  return(
+    <div className="aFI" style={{padding:"24px 20px 104px"}}>
+      <div style={{background:`linear-gradient(135deg,${C.card},${C.surface})`,borderRadius:22,padding:"36px 24px",border:`1px solid ${C.border}`,textAlign:"center",marginBottom:20,position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${C.gold},transparent)`}}/>
+        <div style={{width:86,height:86,borderRadius:"50%",background:`linear-gradient(135deg,${C.gold},${C.goldD})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:34,fontWeight:800,color:"#06060c",margin:"0 auto 16px",boxShadow:`0 10px 36px ${C.goldGlow}`}}>
+          {curUser.username[0].toUpperCase()}
+        </div>
+        <h2 style={{color:C.text,fontWeight:700,fontSize:24,marginBottom:10,fontFamily:"'Cormorant Garamond',serif"}}>{curUser.username}</h2>
+        <span style={{display:"inline-flex",alignItems:"center",gap:7,background:curUser.isAdmin?C.goldL:C.surface,border:`1px solid ${curUser.isAdmin?C.gold+"55":C.border}`,borderRadius:24,padding:"7px 18px",color:curUser.isAdmin?C.gold:C.muted,fontSize:14,fontWeight:600}}><Ic n={curUser.isAdmin?"gear":"user"} size={14} color={curUser.isAdmin?C.gold:C.muted}/>{curUser.isAdmin?"Ադմինիստրատոր":"Օգտատեր"}</span>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:22}}>
+        {[["starF",totalR,"Գնահատականներ",C.gold],["chat",totalC,"Մեկնաբանություններ",C.blue],["bookmark",watchlist.size,"Ցուցակ",C.gold]].map(([ic,n,lb,cl])=>(
+          <div key={lb} style={{background:C.card,borderRadius:16,padding:"20px 12px",border:`1px solid ${C.border}`,textAlign:"center"}}><Ic n={ic} size={24} color={cl} style={{margin:"0 auto 8px"}}/><div style={{color:cl,fontSize:26,fontWeight:800,fontFamily:"'Cormorant Garamond',serif"}}>{n}</div><div style={{color:C.muted,fontSize:11,marginTop:4}}>{lb}</div></div>
+        ))}
+      </div>
+      <Btn v="danger" sz="lg" full onClick={onLogout} C={C}><Ic n="logout" size={17} color={C.red}/>Դուրս Գալ</Btn>
+    </div>
+  );
+}
+
+/* BOTTOM NAV */
+function BottomNav({active,isAdmin,onChange,C}){
+  const[bounce,setBounce]=useState(null);
+  const tabs=[{id:"home",icon:"home",label:"Գլխ."},{id:"movies",icon:"film",label:"Ֆիլմեր"},{id:"watchlist",icon:"bookmark",label:"Ցուցակ"},...(isAdmin?[{id:"admin",icon:"gear",label:"Admin"}]:[]),{id:"profile",icon:"user",label:"Էջ"}];
+  const go=id=>{if(id===active)return;setBounce(id);setTimeout(()=>setBounce(null),420);onChange(id);};
+  return(
+    <nav style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:680,background:`${C.bg}f4`,backdropFilter:"blur(28px) saturate(1.8)",borderTop:`1px solid ${C.border}`,display:"flex",justifyContent:"space-around",paddingTop:10,paddingBottom:26,zIndex:400}}>
+      <div style={{position:"absolute",top:0,left:0,right:0,height:"1.5px",background:`linear-gradient(90deg,transparent,${C.gold}55,transparent)`}}/>
+      {tabs.map(t=>{const on=active===t.id;const ic=on&&t.id==="watchlist"?"bookmarkF":t.icon;return(
+        <button key={t.id} onClick={()=>go(t.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:"5px 10px",background:"none",border:"none",cursor:"pointer",position:"relative",minWidth:50}}>
+          <div style={{position:"absolute",top:0,left:"50%",transform:"translateX(-50%)",width:on?50:0,height:34,borderRadius:10,background:on?C.goldL:"transparent",border:on?`1px solid ${C.gold}33`:"none",transition:"width .32s cubic-bezier(.34,1.56,.64,1)"}}/>
+          <div style={{position:"relative",zIndex:1,animation:bounce===t.id?"bounce .42s cubic-bezier(.34,1.56,.64,1)":"none",transform:on?"scale(1.1)":"scale(1)",transition:"transform .2s"}}><Ic n={ic} size={23} color={on?C.gold:C.muted}/></div>
+          <span style={{fontSize:9,fontWeight:on?700:400,color:on?C.gold:C.muted,transition:"color .2s",position:"relative",zIndex:1,letterSpacing:.3}}>{t.label}</span>
+          {on&&<div style={{position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",width:5,height:5,borderRadius:"50%",background:C.gold}}/>}
+        </button>
+      );})}
+    </nav>
+  );
+}
+
+/* HEADER */
+function Header({curUser,onProfileClick,isDark,onToggleTheme,C}){
+  return(
+    <header style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 20px",background:`${C.bg}f0`,backdropFilter:"blur(28px) saturate(1.8)",borderBottom:`1px solid ${C.border}`,position:"sticky",top:0,zIndex:200}}>
+      <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:`linear-gradient(90deg,transparent,${C.gold}44,transparent)`}}/>
+      <Logo h={34} C={C}/>
+      <div style={{display:"flex",gap:9,alignItems:"center"}}>
+        <button className="bp" onClick={onToggleTheme} style={{width:40,height:40,borderRadius:10,background:C.card,border:`1.5px solid ${C.border}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Ic n={isDark?"sun":"moon"} size={17} color={C.muted}/></button>
+        <button className="bp" onClick={onProfileClick} style={{background:curUser?C.goldL:C.card,border:`1.5px solid ${curUser?C.gold+"55":C.border}`,borderRadius:22,padding:"8px 18px",color:curUser?C.gold:C.text,cursor:"pointer",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:8,fontFamily:"'Jost',sans-serif"}}>
+          {curUser?(<><div style={{width:24,height:24,borderRadius:"50%",background:`linear-gradient(135deg,${C.gold},${C.goldD})`,color:"#06060c",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,flexShrink:0}}>{curUser.username[0].toUpperCase()}</div>{curUser.username}{curUser.isAdmin&&<Ic n="gear" size={12} color={C.gold}/>}</>):(<><Ic n="user" size={14} color={C.text}/>Մուտք</>)}
+        </button>
+      </div>
+    </header>
+  );
+}
+
+/* ROOT APP */
+function App(){
+  const[isDark,setIsDark]=useState(true);
+  const C=isDark?D:L;
+  useEffect(()=>{
+    let st=document.getElementById("kb-style");
+    if(!st){st=document.createElement("style");st.id="kb-style";document.head.appendChild(st);}
+    st.textContent=G_CSS(C);
+    document.body.style.background=C.bg;
+    document.body.style.color=C.text;
+  });
+
+  // ── State with localStorage persistence ──────────────────────────────
+  const[movies,setMovies]=useState(()=>lsGet(LS_MOVIES, SEED));
+  const[users,setUsers]=useState(()=>lsGet(LS_USERS, INIT_USERS));
+  const[allRatings,setAllRatings]=useState(()=>lsGet(LS_RATINGS, {}));
+  const[allComments,setAllComments]=useState(()=>lsGet(LS_COMMENTS, {}));
+
+  // Persist to localStorage whenever these states change
+  useEffect(()=>{ lsSet(LS_MOVIES, movies); },[movies]);
+  useEffect(()=>{ lsSet(LS_USERS, users); },[users]);
+  useEffect(()=>{ lsSet(LS_RATINGS, allRatings); },[allRatings]);
+  useEffect(()=>{ lsSet(LS_COMMENTS, allComments); },[allComments]);
+  // ─────────────────────────────────────────────────────────────────────
+
+  const[curUser,setCurUser]=useState(null);
+  const[watchlist,setWatchlist]=useState(new Set());
+  const[view,setView]=useState("home");
+  const[selMovie,setSelMovie]=useState(null);
+  const[editMovie,setEditMovie]=useState(null);
+  const[authError,setAuthError]=useState("");
+
+  const handleLogin=(u,p)=>{const f=users.find(x=>x.username===u&&x.password===p);if(f){setCurUser(f);setAuthError("");setView("home");}else setAuthError("Օգտանունը կամ գաղտնաբառը սխալ է");};
+  const handleRegister=(u,p)=>{if(u.toLowerCase()==="admin"||users.find(x=>x.username===u)){setAuthError("Օգտանունը զբաղված է");return;}const nu={id:uid(),username:u,password:p,isAdmin:false};setUsers(pr=>[...pr,nu]);setCurUser(nu);setAuthError("");setView("home");};
+  const handleLogout=()=>{setCurUser(null);setView("home");};
+  const handleRate=(mid,stars)=>{if(!curUser)return;setAllRatings(p=>({...p,[mid]:[...(p[mid]||[]).filter(r=>r.userId!==curUser.id),{userId:curUser.id,stars}]}));};
+  const handleComment=(mid,text)=>{if(!curUser)return;setAllComments(p=>({...p,[mid]:[...(p[mid]||[]),{id:uid(),userId:curUser.id,userName:curUser.username,text,createdAt:Date.now()}]}));};
+  const handleWatchlist=id=>{if(!curUser){setView("auth");return;}setWatchlist(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});};
+  const handleAddMovie=m=>setMovies(p=>[m,...p]);
+  const handleDeleteMovie=id=>{setMovies(p=>p.filter(m=>m.id!==id));if(selMovie?.id===id){setSelMovie(null);setView("home");}setEditMovie(null);};
+  const handleSaveEdit=upd=>{setMovies(p=>p.map(m=>m.id===upd.id?{...m,...upd}:m));if(selMovie?.id===upd.id)setSelMovie(pr=>({...pr,...upd}));setEditMovie(null);};
+  const openEdit=m=>{if(!curUser?.isAdmin){setView("auth");return;}setEditMovie(m);};
+  const openDetail=m=>{setSelMovie(m);setView("detail");};
+  const isAdmin=curUser?.isAdmin;
+  const hideAll=view==="auth";
+  const hideNav=view==="auth"||view==="detail";
+  const navChange=v=>{if(v==="admin"&&!isAdmin){setView("auth");return;}setView(v);};
+  const cp={movies,allRatings,watchlist,onWatchlist:handleWatchlist,onEdit:isAdmin?openEdit:null,onSelect:openDetail,C};
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'Jost',sans-serif",maxWidth:680,margin:"0 auto",position:"relative",overflowX:"hidden",transition:"background .35s,color .35s"}}>
+      {!hideAll&&<Header curUser={curUser} onProfileClick={()=>setView(curUser?"profile":"auth")} isDark={isDark} onToggleTheme={()=>setIsDark(d=>!d)} C={C}/>}
+      {view==="home"     &&<PageHome      {...cp}/>}
+      {view==="movies"   &&<PageMovies    {...cp}/>}
+      {view==="watchlist"&&<PageWatchlist {...cp}/>}
+      {view==="admin"    &&isAdmin&&<PageAdmin movies={movies} onAdd={handleAddMovie} onDelete={handleDeleteMovie} onEdit={openEdit} C={C}/>}
+      {view==="profile"  &&<PageProfile curUser={curUser} allRatings={allRatings} allComments={allComments} watchlist={watchlist} onLogout={handleLogout} setView={setView} C={C}/>}
+      {view==="auth"     &&<PageAuth onLogin={handleLogin} onRegister={handleRegister} onBack={()=>setView("home")} error={authError} C={C}/>}
+      {view==="detail"   &&selMovie&&<PageDetail movie={selMovie} curUser={curUser} allRatings={allRatings} allComments={allComments} watchlist={watchlist} onRate={handleRate} onComment={handleComment} onWatchlist={handleWatchlist} onBack={()=>setView("home")} onDelete={handleDeleteMovie} onEdit={openEdit} C={C}/>}
+      {!hideNav&&<BottomNav active={view} isAdmin={isAdmin} onChange={navChange} C={C}/>}
+      {editMovie&&<EditModal movie={editMovie} onSave={handleSaveEdit} onClose={()=>setEditMovie(null)} C={C}/>}
+    </div>
+  );
+}
+
+const root=ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+  </script>
+</body>
+</html>
