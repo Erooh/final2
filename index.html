@@ -7,73 +7,113 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
+/* ═══════════════════════════════════════════════════════════
+   FIREBASE — լրացրեք Ձեր Firebase նախագծի տվյալները այստեղ
+   (Firebase Console → Project settings → Your apps → Web app → firebaseConfig)
+   Եթե դատարկ է՝ կայքը աշխատում է միայն տեղային ռեժիմով (տվյալները չեն երևում այլ սարքերում)
+   ═══════════════════════════════════════════════════════════ */
+const FIREBASE_CONFIG={
+  apiKey:"",
+  authDomain:"",
+  projectId:"",
+  storageBucket:"",
+  messagingSenderId:"",
+  appId:""
+};
+
 const D={bg:"#06060c",surface:"#0d0d17",card:"#11111e",cardH:"#161625",border:"#1f1f32",borderL:"#2a2a42",gold:"#c9a84c",goldL:"#c9a84c1a",goldD:"#a8883a",goldGlow:"#c9a84c30",text:"#f2ede4",textSub:"#a09880",muted:"#56566e",red:"#d94f4f",green:"#3dba72",blue:"#4a90d9"};
 const L={bg:"#f5f2eb",surface:"#ffffff",card:"#faf8f3",cardH:"#f0ede4",border:"#e4dfd4",borderL:"#d4cfc4",gold:"#a8782a",goldL:"#a8782a14",goldD:"#8a6222",goldGlow:"#a8782a20",text:"#1a1814",textSub:"#5a5244",muted:"#9a9080",red:"#c04040",green:"#2e9460",blue:"#3472b8"};
 
 const GENRES=[{id:"all",label:"Բոլոր",icon:"🎬"},{id:"action",label:"Ակցիոն",icon:"💥"},{id:"drama",label:"Դրամա",icon:"🎭"},{id:"comedy",label:"Կատակերգություն",icon:"😂"},{id:"horror",label:"Սարսափ",icon:"👻"},{id:"thriller",label:"Թրիլեր",icon:"🔪"},{id:"sci-fi",label:"Ֆանտաստիկա",icon:"🚀"},{id:"romance",label:"Ռոմանտիկ",icon:"❤️"},{id:"armenian",label:"Հայկական",icon:"🇦🇲"},{id:"animation",label:"Անիմացիա",icon:"✨"}];
 
-/* Հին օրինակ ֆիլմերի ID-ները — դրանք ավտոմատ հեռացվում են պահված տվյալներից */
 const OLD_SEED_IDS=["m1","m2","m3","m4","m5","m6","m7","m8","m9","m10"];
-const dropSeedMovies=arr=>(Array.isArray(arr)?arr:[]).filter(m=>!OLD_SEED_IDS.includes(m.id));
-const dropSeedKeys=obj=>{const o={};Object.keys(obj||{}).forEach(k=>{if(!OLD_SEED_IDS.includes(k))o[k]=obj[k];});return o;};
-
-const INIT_USERS=[{id:"u_admin",username:"admin",password:"admin123",isAdmin:true}];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2);
 const avgRating=rs=>rs?.length?(rs.reduce((s,r)=>s+r.stars,0)/rs.length).toFixed(1):null;
+const fmtT=s=>{s=Math.max(0,Math.floor(s||0));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (h?h+":":"")+String(m).padStart(h?2:1,"0")+":"+String(x).padStart(2,"0");};
 
-/* ── Մշտական պահոցը (IndexedDB) — մեծ վիդեոների համար էլ բավարար տեղ ունի ── */
-const K_MOVIES="kb_movies_v2", K_RATINGS="kb_ratings_v2", K_COMMENTS="kb_comments_v2", K_USERS="kb_users_v2", K_WL="kb_watchlist_v2", K_SESSION="kb_session_v2", K_THEME="kb_theme_v2";
-/* Հին localStorage բանալիներ (միգրացիայի համար) */
-const LS_OLD={movies:"kb_movies_v1",ratings:"kb_ratings_v1",comments:"kb_comments_v1",users:"kb_users_v1"};
-
-function lsGet(key, fallback){
-  try{ const raw=localStorage.getItem(key); return raw===null?fallback:JSON.parse(raw); }catch(e){ return fallback; }
-}
-function lsSet(key, value){
-  try{ localStorage.setItem(key, JSON.stringify(value)); return true; }catch(e){ return false; }
+async function hashPw(u,p){
+  try{
+    const b=new TextEncoder().encode("kb:"+u.toLowerCase()+":"+p);
+    const h=await crypto.subtle.digest("SHA-256",b);
+    return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,"0")).join("");
+  }catch(e){return "p:"+p;}
 }
 
-const DB_NAME="kinobak_db", STORE="kv";
+function lsGet(key,fb){try{const r=localStorage.getItem(key);return r===null?fb:JSON.parse(r);}catch(e){return fb;}}
+function lsSet(key,v){try{localStorage.setItem(key,JSON.stringify(v));return true;}catch(e){return false;}}
+
+/* ── Տեղային պահոց (IndexedDB) — օգտագործվում է միայն եթե Firebase-ը միացված չէ ── */
+const DB_NAME="kinobak_db",STORE="kv";
 let _dbP=null;
-function openDB(){
-  return new Promise((res,rej)=>{
-    if(!window.indexedDB){rej(new Error("no idb"));return;}
-    const r=indexedDB.open(DB_NAME,1);
-    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE); };
-    r.onsuccess=()=>res(r.result);
-    r.onerror=()=>rej(r.error);
+function openDB(){return new Promise((res,rej)=>{if(!window.indexedDB){rej(new Error("no idb"));return;}const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE);};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+const getDB=()=>_dbP||(_dbP=openDB());
+async function dbGet(key,fb){try{const d=await getDB();return await new Promise(res=>{const q=d.transaction(STORE).objectStore(STORE).get(key);q.onsuccess=()=>res(q.result===undefined?fb:q.result);q.onerror=()=>res(fb);});}catch(e){return lsGet("idbfb_"+key,fb);}}
+async function dbSet(key,v){try{const d=await getDB();return await new Promise(res=>{const t=d.transaction(STORE,"readwrite");t.objectStore(STORE).put(v,key);t.oncomplete=()=>res(true);t.onerror=()=>res(false);t.onabort=()=>res(false);});}catch(e){return lsSet("idbfb_"+key,v);}}
+
+/* ── Տվյալների շերտ: Firestore (ընդհանուր բոլոր սարքերի համար) կամ տեղային ── */
+let fdb=null,fstore=null;
+try{
+  if(FIREBASE_CONFIG.projectId&&window.firebase){
+    firebase.initializeApp(FIREBASE_CONFIG);
+    fdb=firebase.firestore();
+    try{fstore=firebase.storage();}catch(e){}
+  }
+}catch(e){console.error(e);fdb=null;}
+const CLOUD=!!fdb;
+
+const localCache={},localLs={};
+async function localLoad(c){if(!localCache[c]){localCache[c]=await dbGet("kb3_"+c,{});localLs[c]=[];}return localCache[c];}
+const Store={
+  listen(c,cb){
+    if(fdb){
+      let first=true;
+      return fdb.collection(c).onSnapshot(s=>{first=false;const o={};s.forEach(d=>{o[d.id]=d.data();});cb(o);},err=>{console.error(err);if(first){first=false;cb({});}});
+    }
+    let off=false;
+    localLoad(c).then(()=>{if(off)return;localLs[c].push(cb);cb({...localCache[c]});});
+    return()=>{off=true;localLs[c]=(localLs[c]||[]).filter(x=>x!==cb);};
+  },
+  listenDoc(c,id,cb){
+    if(fdb)return fdb.collection(c).doc(id).onSnapshot(d=>cb(d.exists?d.data():null),err=>console.error(err));
+    return Store.listen(c,o=>cb(o[id]||null));
+  },
+  async put(c,id,data){
+    try{
+      if(fdb){await fdb.collection(c).doc(id).set(data);return true;}
+      await localLoad(c);localCache[c][id]=data;const ok=await dbSet("kb3_"+c,localCache[c]);
+      (localLs[c]||[]).forEach(f=>f({...localCache[c]}));return ok;
+    }catch(e){console.error(e);return false;}
+  },
+  async del(c,id){
+    try{
+      if(fdb){await fdb.collection(c).doc(id).delete();return true;}
+      await localLoad(c);delete localCache[c][id];const ok=await dbSet("kb3_"+c,localCache[c]);
+      (localLs[c]||[]).forEach(f=>f({...localCache[c]}));return ok;
+    }catch(e){console.error(e);return false;}
+  },
+};
+
+function compressImage(file,maxW=720,q=.78){
+  return new Promise(res=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      const im=new Image();
+      im.onload=()=>{const k=Math.min(1,maxW/im.width);const c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",q));};
+      im.onerror=()=>res(e.target.result);
+      im.src=e.target.result;
+    };
+    r.readAsDataURL(file);
   });
 }
-const getDB=()=>_dbP||(_dbP=openDB());
-async function dbGet(key, fallback){
-  try{
-    const d=await getDB();
-    return await new Promise(res=>{
-      const q=d.transaction(STORE).objectStore(STORE).get(key);
-      q.onsuccess=()=>res(q.result===undefined?fallback:q.result);
-      q.onerror=()=>res(fallback);
-    });
-  }catch(e){ return lsGet("idbfb_"+key, fallback); }
-}
-async function dbSet(key, value){
-  try{
-    const d=await getDB();
-    return await new Promise(res=>{
-      const t=d.transaction(STORE,"readwrite");
-      t.objectStore(STORE).put(value,key);
-      t.oncomplete=()=>res(true);
-      t.onerror=()=>res(false);
-      t.onabort=()=>res(false);
-    });
-  }catch(e){ return lsSet("idbfb_"+key, value); }
-}
-/* ── ── ── ── ── ── ── ── ── */
 
 const G_CSS=(C)=>`
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Jost:wght@300;400;500;600;700;800&display=swap');
@@ -214,24 +254,87 @@ function TA({value,onChange,placeholder,rows=3,C}){
     onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/>;
 }
 
-/* VIDEO PLAYER */
-function VideoPlayer({src,title,onClose,C}){
+/* VIDEO PLAYER — լրիվ էկրան, ավտոմատ հորիզոնական, շարունակում է պահված կետից */
+function VideoPlayer({src,title,startAt=0,onProgress,onClose,C}){
+  const wrap=useRef(),vid=useRef();
+  const closing=useRef(false),entered=useRef(false),lastSave=useRef(0);
+  const propsRef=useRef({});propsRef.current={onProgress,onClose,startAt};
+  const[ui,setUi]=useState(true);
+  const hideT=useRef();
+  const showUi=()=>{setUi(true);clearTimeout(hideT.current);hideT.current=setTimeout(()=>{if(vid.current&&!vid.current.paused)setUi(false);},3000);};
+  const save=(ended)=>{
+    const v=vid.current;
+    if(!v||!v.duration||isNaN(v.duration))return;
+    propsRef.current.onProgress?.(v.currentTime,v.duration,!!ended);
+  };
+  const doClose=()=>{
+    if(closing.current)return;closing.current=true;
+    save(false);
+    try{screen.orientation&&screen.orientation.unlock&&screen.orientation.unlock();}catch(e){}
+    try{if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else if(document.webkitFullscreenElement)document.webkitExitFullscreen();}catch(e){}
+    propsRef.current.onClose();
+  };
   useEffect(()=>{
     document.body.style.overflow="hidden";
-    return()=>{document.body.style.overflow="";};
+    const w=wrap.current,v=vid.current;
+    (async()=>{
+      try{
+        if(w.requestFullscreen)await w.requestFullscreen();
+        else if(w.webkitRequestFullscreen)w.webkitRequestFullscreen();
+      }catch(e){}
+      try{if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock("landscape");}catch(e){}
+    })();
+    const onFs=()=>{
+      const fs=document.fullscreenElement||document.webkitFullscreenElement;
+      if(fs){entered.current=true;}
+      else if(entered.current){doClose();}
+    };
+    const onHide=()=>{if(document.visibilityState==="hidden")save(false);};
+    const onEndFs=()=>doClose();
+    document.addEventListener("fullscreenchange",onFs);
+    document.addEventListener("webkitfullscreenchange",onFs);
+    document.addEventListener("visibilitychange",onHide);
+    window.addEventListener("pagehide",onHide);
+    v.addEventListener("webkitendfullscreen",onEndFs);
+    showUi();
+    return()=>{
+      document.body.style.overflow="";
+      document.removeEventListener("fullscreenchange",onFs);
+      document.removeEventListener("webkitfullscreenchange",onFs);
+      document.removeEventListener("visibilitychange",onHide);
+      window.removeEventListener("pagehide",onHide);
+      v.removeEventListener("webkitendfullscreen",onEndFs);
+      clearTimeout(hideT.current);
+      try{screen.orientation&&screen.orientation.unlock&&screen.orientation.unlock();}catch(e){}
+    };
   },[]);
+  const onMeta=()=>{
+    const v=vid.current;
+    const s=propsRef.current.startAt;
+    if(s>0&&v.duration&&s<v.duration-5)v.currentTime=s;
+    const p=v.play();if(p&&p.catch)p.catch(()=>{setUi(true);});
+    const w=wrap.current;
+    if(!w.requestFullscreen&&!w.webkitRequestFullscreen&&v.webkitEnterFullscreen){try{v.webkitEnterFullscreen();}catch(e){}}
+  };
+  const onTime=()=>{
+    const now=Date.now();
+    if(now-lastSave.current>5000){lastSave.current=now;save(false);}
+  };
   return(
-    <div style={{position:"fixed",inset:0,zIndex:950,background:"#000",display:"flex",flexDirection:"column",animation:"fadeIn .18s"}}>
-      <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,transparent,${C.gold},transparent)`,zIndex:2,pointerEvents:"none"}}/>
-      <div style={{position:"absolute",top:0,left:0,right:0,padding:"14px 18px",display:"flex",alignItems:"center",gap:12,background:"linear-gradient(to bottom,rgba(0,0,0,.9) 0%,transparent 100%)",zIndex:2}}>
-        <button className="bp" onClick={onClose}
-          style={{background:"rgba(20,20,30,.85)",backdropFilter:"blur(14px)",border:`1px solid rgba(255,255,255,.15)`,borderRadius:10,padding:"9px 18px",cursor:"pointer",display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
+    <div ref={wrap} onMouseMove={showUi} onTouchStart={showUi} style={{position:"fixed",inset:0,zIndex:950,background:"#000",display:"flex",flexDirection:"column"}}>
+      <video ref={vid} src={src} controls playsInline preload="auto"
+        onLoadedMetadata={onMeta} onTimeUpdate={onTime}
+        onPause={()=>{setUi(true);save(false);}} onPlay={showUi}
+        onEnded={()=>{save(true);setUi(true);}}
+        style={{width:"100%",height:"100%",objectFit:"contain",display:"block",background:"#000"}}/>
+      <div style={{position:"absolute",top:0,left:0,right:0,padding:"14px 18px",display:"flex",alignItems:"center",gap:12,background:"linear-gradient(to bottom,rgba(0,0,0,.85) 0%,transparent 100%)",zIndex:2,opacity:ui?1:0,pointerEvents:ui?"auto":"none",transition:"opacity .3s"}}>
+        <button className="bp" onClick={doClose}
+          style={{background:"rgba(20,20,30,.85)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,.2)",borderRadius:10,padding:"10px 18px",cursor:"pointer",display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
           <Ic n="back" size={16} color="#fff"/>
-          <span style={{color:"#fff",fontSize:13,fontWeight:600,letterSpacing:.2}}>Հետ</span>
+          <span style={{color:"#fff",fontSize:13,fontWeight:600}}>Դուրս գալ</span>
         </button>
-        {title&&<div style={{color:"rgba(255,255,255,.65)",fontSize:16,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"'Cormorant Garamond',serif"}}>{title}</div>}
+        {title&&<div style={{color:"rgba(255,255,255,.75)",fontSize:16,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"'Cormorant Garamond',serif"}}>{title}</div>}
       </div>
-      <video src={src} controls autoPlay playsInline style={{width:"100%",height:"100%",objectFit:"contain",display:"block"}}/>
     </div>
   );
 }
@@ -240,7 +343,7 @@ function VideoPlayer({src,title,onClose,C}){
 function MCard({movie,allRatings,watchlist,onWatchlist,onEdit,onClick,delay=0,C}){
   const rs=allRatings[movie.id]||[];
   const avg=avgRating(rs);
-  const disp=avg||movie.rating?.toFixed?.(1);
+  const disp=avg||(movie.rating?Number(movie.rating).toFixed(1):null);
   const isWL=watchlist?.has(movie.id);
   return(
     <div className="cl aSC" onClick={onClick}
@@ -252,7 +355,7 @@ function MCard({movie,allRatings,watchlist,onWatchlist,onEdit,onClick,delay=0,C}
       </div>
       {onWatchlist&&<button className="bp" onClick={e=>{e.stopPropagation();onWatchlist(movie.id);}} style={{position:"absolute",top:8,right:8,background:"rgba(6,6,12,.82)",backdropFilter:"blur(10px)",border:`1px solid ${isWL?C.gold+"55":C.border}`,borderRadius:8,padding:7,cursor:"pointer",display:"flex"}}><Ic n={isWL?"bookmarkF":"bookmark"} size={14} color={isWL?C.gold:C.muted}/></button>}
       {onEdit&&<button className="bp" onClick={e=>{e.stopPropagation();onEdit(movie);}} style={{position:"absolute",top:8,left:8,background:C.goldL,backdropFilter:"blur(10px)",border:`1px solid ${C.gold}33`,borderRadius:7,padding:7,cursor:"pointer",display:"flex"}}><Ic n="edit" size={12} color={C.gold}/></button>}
-      {movie.videoUrl&&<div style={{position:"absolute",top:8,left:onEdit?40:8,background:`linear-gradient(135deg,${C.gold},${C.goldD})`,borderRadius:6,padding:"3px 7px",display:"flex",alignItems:"center",gap:3}}><Ic n="play" size={9} color="#06060c"/><span style={{fontSize:8,fontWeight:800,color:"#06060c"}}>VIDEO</span></div>}
+      {movie.videoUrl&&<div style={{position:"absolute",top:onEdit?40:8,left:8,background:`linear-gradient(135deg,${C.gold},${C.goldD})`,borderRadius:6,padding:"3px 7px",display:"flex",alignItems:"center",gap:3}}><Ic n="play" size={9} color="#06060c"/><span style={{fontSize:8,fontWeight:800,color:"#06060c"}}>{movie.kind==="movie"?"ՖԻԼՄ":"ՏՐԵՅԼԵՐ"}</span></div>}
       <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"10px 10px"}}>
         <GBadge id={movie.genre} C={C}/>
         <div style={{color:"#f2ede4",fontWeight:700,lineHeight:1.25,margin:"5px 0 4px",fontFamily:"'Cormorant Garamond',serif",fontSize:14}}>{movie.title}</div>
@@ -265,11 +368,38 @@ function MCard({movie,allRatings,watchlist,onWatchlist,onEdit,onClick,delay=0,C}
   );
 }
 
+/* CONTINUE WATCHING */
+function ContinueRow({items,onSelect,C}){
+  if(!items.length)return null;
+  return(
+    <div style={{padding:"26px 20px 0"}}>
+      <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:14}}><h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:23,fontWeight:700,color:C.text}}>Շարունակել դիտել</h2><div style={{flex:1,height:1,background:`linear-gradient(90deg,${C.border},transparent)`}}/><Ic n="play" size={15} color={C.gold}/></div>
+      <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:8,scrollbarWidth:"none"}}>
+        {items.map(({movie,p})=>(
+          <div key={movie.id} className="cl" onClick={()=>onSelect(movie)} style={{flexShrink:0,width:200,background:C.card,borderRadius:14,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+            <div style={{position:"relative",height:112,background:C.surface}}>
+              <img src={movie.poster} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:"brightness(.7)"}} onError={e=>{e.target.style.display="none";}}/>
+              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><Ic n="play" size={34} color="#fff"/></div>
+              <div style={{position:"absolute",bottom:0,left:0,right:0,height:4,background:"rgba(255,255,255,.2)"}}><div style={{height:"100%",width:`${Math.min(100,(p.t/p.d)*100)}%`,background:C.gold}}/></div>
+            </div>
+            <div style={{padding:"10px 12px"}}>
+              <div style={{color:C.text,fontWeight:700,fontSize:14,fontFamily:"'Cormorant Garamond',serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{movie.title}</div>
+              <div style={{color:C.gold,fontSize:11,marginTop:3}}>Շարունակել · {fmtT(p.t)}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* MOVIE FORM */
 function MForm({initial,onSave,onCancel,title="Ավելացնել",C}){
-  const blank={title:"",year:new Date().getFullYear(),genre:"drama",poster:"",videoUrl:"",videoName:"",description:"",duration:"",director:"",language:"Անգլերեն",price:2800};
-  const[form,setForm]=useState(initial?{...initial}:{...blank});
+  const blank={title:"",year:new Date().getFullYear(),genre:"drama",kind:"trailer",poster:"",videoUrl:"",videoName:"",description:"",duration:"",director:"",language:"Անգլերեն",price:2800};
+  const[form,setForm]=useState(initial?{kind:"trailer",...initial}:{...blank});
   const[saving,setSaving]=useState(false);
+  const[up,setUp]=useState(null);
+  const[upErr,setUpErr]=useState("");
   const posterRef=useRef();
   const videoRef=useRef();
   const set=(k,v)=>setForm(f=>({...f,[k]:v}));
@@ -277,19 +407,31 @@ function MForm({initial,onSave,onCancel,title="Ավելացնել",C}){
   const fo=e=>e.target.style.borderColor=C.gold;
   const fb=e=>e.target.style.borderColor=C.border;
 
-  const handlePoster=e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=ev=>set("poster",ev.target.result);r.readAsDataURL(f);};
+  const handlePoster=async e=>{const f=e.target.files?.[0];if(!f)return;set("poster",await compressImage(f));};
   const handleVideo=e=>{
     const f=e.target.files?.[0];if(!f)return;
-    const r=new FileReader();
-    r.onload=ev=>{
-      setForm(fm=>({...fm,videoUrl:ev.target.result,videoName:f.name}));
-    };
-    r.readAsDataURL(f);
+    setUpErr("");
+    if(CLOUD){
+      if(!fstore){setUpErr("Firebase Storage-ը միացված չէ. օգտագործեք վիդեոյի հղումը (URL)");return;}
+      setUp(0);
+      const ref=fstore.ref(`videos/${uid()}_${f.name.replace(/[^\w.\-]/g,"_")}`);
+      const task=ref.put(f);
+      task.on("state_changed",
+        s=>setUp(Math.round(s.bytesTransferred/s.totalBytes*100)),
+        err=>{console.error(err);setUp(null);setUpErr("Վիդեոն չբեռնվեց. ստուգեք Firebase Storage-ի կանոնները կամ օգտագործեք URL");},
+        async()=>{const url=await task.snapshot.ref.getDownloadURL();setForm(fm=>({...fm,videoUrl:url,videoName:f.name}));setUp(null);}
+      );
+    }else{
+      const r=new FileReader();
+      r.onload=ev=>setForm(fm=>({...fm,videoUrl:ev.target.result,videoName:f.name}));
+      r.readAsDataURL(f);
+    }
   };
   const handleSave=()=>{
-    if(!form.title.trim())return;setSaving(true);
+    if(!form.title.trim()||up!==null)return;setSaving(true);
     setTimeout(()=>{onSave({...form,year:Number(form.year),price:Number(form.price)});setSaving(false);},380);
   };
+  const isFilm=form.kind==="movie";
 
   return(
     <div>
@@ -305,20 +447,28 @@ function MForm({initial,onSave,onCancel,title="Ավելացնել",C}){
         <button className="bp" onClick={()=>posterRef.current?.click()} style={{flexShrink:0,padding:"12px 14px",borderRadius:10,background:C.goldL,border:`1px solid ${C.gold}44`,cursor:"pointer",display:"flex",alignItems:"center"}}><Ic n="upload" size={16} color={C.gold}/></button>
       </div>
 
-      <input ref={videoRef} type="file" accept="video/*" style={{display:"none"}} onChange={handleVideo}/>
       <div style={{marginBottom:12}}>
-        <div style={{color:C.muted,fontSize:11,fontWeight:600,letterSpacing:.5,marginBottom:6,textTransform:"uppercase"}}>Թրեյլեր / Video</div>
-        <button className="bp" onClick={()=>videoRef.current?.click()}
+        <div style={{color:C.muted,fontSize:11,fontWeight:600,letterSpacing:.5,marginBottom:8,textTransform:"uppercase"}}>Վիդեոյի տեսակը</div>
+        <div style={{display:"flex",gap:8,marginBottom:10}}>
+          {[["trailer","🎞 Թրեյլեր"],["movie","🎬 Ֆիլմ"]].map(([k,lb])=>(
+            <button key={k} className="bp" onClick={()=>set("kind",k)} style={{flex:1,padding:"11px",borderRadius:10,background:form.kind===k?C.gold:C.surface,color:form.kind===k?"#06060c":C.muted,border:`1.5px solid ${form.kind===k?C.gold:C.border}`,fontFamily:"'Jost',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>{lb}</button>
+          ))}
+        </div>
+        <input ref={videoRef} type="file" accept="video/*" style={{display:"none"}} onChange={handleVideo}/>
+        <button className="bp" onClick={()=>videoRef.current?.click()} disabled={up!==null}
           style={{width:"100%",padding:"14px 16px",borderRadius:10,background:form.videoUrl?C.goldL:C.surface,border:`1.5px ${form.videoUrl?"solid":"dashed"} ${form.videoUrl?C.gold:C.border}`,color:form.videoUrl?C.gold:C.muted,fontFamily:"'Jost',sans-serif",fontWeight:600,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"all .2s"}}>
           <Ic n="video" size={18} color={form.videoUrl?C.gold:C.muted}/>
           <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,textAlign:"left"}}>
-            {form.videoName||"Ընտրել վիդեո ֆայլը համակարգից..."}
+            {up!==null?`Բեռնվում է... ${up}%`:(form.videoName||(form.videoUrl?"Վիդեոն ավելացված է":`Ընտրել ${isFilm?"ֆիլմի":"թրեյլերի"} ֆայլը...`))}
           </span>
-          {form.videoUrl&&<span style={{fontSize:9,background:C.green,color:"#fff",borderRadius:5,padding:"3px 8px",flexShrink:0,fontWeight:700}}>✓ OK</span>}
+          {form.videoUrl&&up===null&&<span style={{fontSize:9,background:C.green,color:"#fff",borderRadius:5,padding:"3px 8px",flexShrink:0,fontWeight:700}}>✓ OK</span>}
         </button>
-        {form.videoUrl&&(
+        {up!==null&&<div style={{height:5,borderRadius:3,background:C.border,marginTop:8,overflow:"hidden"}}><div style={{height:"100%",width:`${up}%`,background:C.gold,transition:"width .2s"}}/></div>}
+        {upErr&&<div style={{color:C.red,fontSize:12,marginTop:8,lineHeight:1.5}}>{upErr}</div>}
+        <input value={form.videoUrl?.startsWith("data:")?"":form.videoUrl||""} onChange={e=>setForm(fm=>({...fm,videoUrl:e.target.value,videoName:""}))} placeholder="կամ տեղադրեք վիդեոյի հղումը (.mp4 URL)" style={{...iSt,marginTop:10,marginBottom:0,fontSize:13}} onFocus={fo} onBlur={fb}/>
+        {form.videoUrl&&up===null&&(
           <button className="bp" onClick={()=>setForm(fm=>({...fm,videoUrl:"",videoName:""}))}
-            style={{marginTop:6,padding:"6px 12px",borderRadius:8,background:"rgba(217,79,79,.08)",border:"1px solid rgba(217,79,79,.25)",color:C.red,fontFamily:"'Jost',sans-serif",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
+            style={{marginTop:8,padding:"6px 12px",borderRadius:8,background:"rgba(217,79,79,.08)",border:"1px solid rgba(217,79,79,.25)",color:C.red,fontFamily:"'Jost',sans-serif",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
             <Ic n="x" size={11} color={C.red}/>Հեռացնել վիդեոն
           </button>
         )}
@@ -342,7 +492,7 @@ function MForm({initial,onSave,onCancel,title="Ավելացնել",C}){
       <TA value={form.description} onChange={e=>set("description",e.target.value)} placeholder="Նկարագրություն..." C={C}/>
       <div style={{display:"flex",gap:9,marginTop:4}}>
         {onCancel&&<Btn v="ghost" onClick={onCancel} full C={C}><Ic n="x" size={14} color={C.muted}/>Չեղարկել</Btn>}
-        <Btn v={saving?"green":"gold"} onClick={handleSave} full disabled={saving} C={C}>
+        <Btn v={saving?"green":"gold"} onClick={handleSave} full disabled={saving||up!==null} C={C}>
           {saving?<><Ic n="check" size={15} color="#000"/>Պահվում է...</>:<><Ic n="save" size={15} color="#06060c"/>{initial?"Թարմացնել":"Ավելացնել"}</>}
         </Btn>
       </div>
@@ -364,7 +514,6 @@ function EditModal({movie,onSave,onClose,C}){
   );
 }
 
-/* EMPTY STATE */
 function EmptyCatalog({canAdd,onGoAdmin,C}){
   return(
     <div className="aFI" style={{textAlign:"center",padding:"90px 28px"}}>
@@ -377,7 +526,7 @@ function EmptyCatalog({canAdd,onGoAdmin,C}){
 }
 
 /* PAGE HOME */
-function PageHome({movies,allRatings,watchlist,onWatchlist,onEdit,onSelect,goAdmin,C}){
+function PageHome({movies,allRatings,watchlist,onWatchlist,onEdit,onSelect,goAdmin,cont,C}){
   const sorted=[...movies].sort((a,b)=>b.addedAt-a.addedAt);
   const[featured]=sorted;
   const topRated=[...movies].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0)).slice(0,8);
@@ -407,6 +556,7 @@ function PageHome({movies,allRatings,watchlist,onWatchlist,onEdit,onSelect,goAdm
           </div>
         </div>
       )}
+      <ContinueRow items={cont} onSelect={onSelect} C={C}/>
       <div style={{padding:"28px 20px 0"}}>
         <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:16}}><h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:23,fontWeight:700,color:C.text}}>Լավագույնները</h2><div style={{flex:1,height:1,background:`linear-gradient(90deg,${C.border},transparent)`}}/><Ic n="starF" size={15} color={C.gold}/></div>
         <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:8,scrollbarWidth:"none"}}>
@@ -478,16 +628,18 @@ function PageWatchlist({movies,allRatings,watchlist,onWatchlist,onEdit,onSelect,
 }
 
 /* PAGE DETAIL */
-function PageDetail({movie,curUser,allRatings,allComments,watchlist,onRate,onComment,onWatchlist,onBack,onDelete,onEdit,C}){
+function PageDetail({movie,curUser,allRatings,allComments,watchlist,prog,onRate,onComment,onWatchlist,onProgress,onBack,onDelete,onEdit,C}){
   const[text,setText]=useState("");
-  const[showVideo,setShowVideo]=useState(false);
+  const[player,setPlayer]=useState(null);
   const[confirmDel,setConfirmDel]=useState(false);
   const rs=allRatings[movie.id]||[];
   const avg=avgRating(rs);
-  const disp=avg||movie.rating?.toFixed?.(1);
+  const disp=avg||(movie.rating?Number(movie.rating).toFixed(1):null);
   const myStars=curUser?(rs.find(r=>r.userId===curUser.id)?.stars||0):0;
   const comments=(allComments[movie.id]||[]).slice().reverse();
   const isWL=watchlist?.has(movie.id);
+  const isFilm=movie.kind==="movie";
+  const canResume=isFilm&&curUser&&prog&&prog.t>5;
   return(
     <div className="aFI" style={{paddingBottom:60}}>
       <div style={{position:"relative",height:"min(66vh,460px)",overflow:"hidden"}}>
@@ -519,11 +671,18 @@ function PageDetail({movie,curUser,allRatings,allComments,watchlist,onRate,onCom
         </div>
 
         {movie.videoUrl?(
-          <button className="bp" onClick={()=>setShowVideo(true)}
-            style={{width:"100%",padding:"17px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${C.gold},${C.goldD})`,color:"#06060c",fontFamily:"'Jost',sans-serif",fontWeight:800,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:20,boxShadow:`0 6px 28px ${C.goldGlow}`,letterSpacing:.3}}>
-            <Ic n="play" size={24} color="#06060c"/>
-            ▶ &nbsp;Դիտել Թրեյլերը
-          </button>
+          <div style={{marginBottom:20}}>
+            <button className="bp" onClick={()=>setPlayer({startAt:canResume?prog.t:0})}
+              style={{width:"100%",padding:"17px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${C.gold},${C.goldD})`,color:"#06060c",fontFamily:"'Jost',sans-serif",fontWeight:800,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:12,boxShadow:`0 6px 28px ${C.goldGlow}`,letterSpacing:.3}}>
+              <Ic n="play" size={24} color="#06060c"/>
+              {isFilm?(canResume?`Շարունակել ֆիլմը · ${fmtT(prog.t)}`:"Դիտել Ֆիլմը"):"Դիտել Թրեյլերը"}
+            </button>
+            {canResume&&<>
+              <div style={{height:4,borderRadius:3,background:C.border,marginTop:10,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,(prog.t/prog.d)*100)}%`,background:C.gold}}/></div>
+              <button className="bp" onClick={()=>setPlayer({startAt:0})} style={{marginTop:10,background:"none",border:"none",color:C.muted,fontSize:13,fontFamily:"'Jost',sans-serif",cursor:"pointer",textDecoration:"underline"}}>Սկսել սկզբից</button>
+            </>}
+            {isFilm&&!curUser&&<div style={{color:C.muted,fontSize:12,marginTop:8}}>Դիտման պատմությունը պահելու համար մուտք գործեք</div>}
+          </div>
         ):(
           <div style={{width:"100%",padding:"15px",borderRadius:14,border:`1.5px dashed ${C.border}`,background:C.card,color:C.muted,fontFamily:"'Jost',sans-serif",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:20}}>
             <Ic n="video" size={16} color={C.muted}/>Տեսանյութը չի ավելացվել
@@ -575,7 +734,9 @@ function PageDetail({movie,curUser,allRatings,allComments,watchlist,onRate,onCom
         </div>
       </div>
 
-      {showVideo&&movie.videoUrl&&<VideoPlayer src={movie.videoUrl} title={movie.title} onClose={()=>setShowVideo(false)} C={C}/>}
+      {player&&movie.videoUrl&&<VideoPlayer src={movie.videoUrl} title={movie.title} startAt={player.startAt}
+        onProgress={isFilm&&curUser?(t,d,ended)=>onProgress(movie.id,t,d,ended):null}
+        onClose={()=>setPlayer(null)} C={C}/>}
       {confirmDel&&<Confirm msg={`"${movie.title}" ֆիլմը ջնջե՞լ`} onOk={()=>{setConfirmDel(false);onDelete(movie.id);}} onCancel={()=>setConfirmDel(false)} C={C}/>}
     </div>
   );
@@ -609,7 +770,7 @@ function PageAdmin({movies,onAdd,onDelete,onEdit,C}){
             <div style={{flex:1,minWidth:0}}>
               <div style={{color:C.text,fontWeight:700,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"'Cormorant Garamond',serif"}}>{m.title}</div>
               <div style={{color:C.muted,fontSize:11,marginTop:2}}>{m.year} · {GENRES.find(g=>g.id===m.genre)?.label||m.genre}</div>
-              {m.videoUrl&&<div style={{color:C.green,fontSize:10,marginTop:2,display:"flex",gap:3,alignItems:"center"}}><Ic n="video" size={9} color={C.green}/>Տեսանյութ կա</div>}
+              {m.videoUrl&&<div style={{color:C.green,fontSize:10,marginTop:2,display:"flex",gap:3,alignItems:"center"}}><Ic n="video" size={9} color={C.green}/>{m.kind==="movie"?"Ֆիլմ կա":"Թրեյլեր կա"}</div>}
             </div>
             <div style={{display:"flex",gap:7,flexShrink:0}}>
               <button className="bp" onClick={()=>onEdit(m)} style={{padding:"9px 11px",borderRadius:9,background:C.goldL,border:`1px solid ${C.gold}33`,cursor:"pointer",display:"flex"}}><Ic n="edit" size={15} color={C.gold}/></button>
@@ -619,7 +780,7 @@ function PageAdmin({movies,onAdd,onDelete,onEdit,C}){
         ))}
         {movies.length===0&&<div style={{color:C.muted,fontSize:13,textAlign:"center",padding:"18px 0"}}>Դեռ ոչ մի ֆիլմ չկա</div>}
       </div>
-      {confirm&&<Confirm msg={`"${confirm.title}" ջնջե՞լ`} onOk={()=>{onDelete(confirm.id);setConfirm(null);}} onCancel={()=>setConfirm(null)} C={C}/>}
+      {confirm&&<Confirm msg={`"${confirm.title}" ջնջել`} onOk={()=>{onDelete(confirm.id);setConfirm(null);}} onCancel={()=>setConfirm(null)} C={C}/>}
     </div>
   );
 }
@@ -630,7 +791,7 @@ function PageAuth({onLogin,onRegister,onBack,error,C}){
   const[username,setUsername]=useState("");
   const[password,setPassword]=useState("");
   const[showPwd,setShowPwd]=useState(false);
-  const submit=()=>{if(!username.trim()||!password.trim())return;mode==="login"?onLogin(username,password):onRegister(username,password);};
+  const submit=()=>{if(!username.trim()||!password.trim())return;mode==="login"?onLogin(username.trim(),password):onRegister(username.trim(),password);};
   return(
     <div className="aFI" style={{minHeight:"100vh",display:"flex",flexDirection:"column",justifyContent:"center",padding:"40px 28px",background:C.bg,position:"relative",overflow:"hidden"}}>
       <div style={{position:"absolute",inset:0,background:`radial-gradient(ellipse at 50% 25%,${C.goldGlow} 0%,transparent 70%)`,pointerEvents:"none"}}/>
@@ -654,7 +815,7 @@ function PageAuth({onLogin,onRegister,onBack,error,C}){
 }
 
 /* PAGE PROFILE */
-function PageProfile({curUser,allRatings,allComments,watchlist,onLogout,setView,C}){
+function PageProfile({curUser,allRatings,allComments,watchlist,cont,onSelect,onLogout,setView,C}){
   const totalR=curUser?Object.values(allRatings).flat().filter(r=>r.userId===curUser.id).length:0;
   const totalC=curUser?Object.values(allComments).flat().filter(c=>c.userId===curUser.id).length:0;
   if(!curUser)return(
@@ -666,7 +827,8 @@ function PageProfile({curUser,allRatings,allComments,watchlist,onLogout,setView,
     </div>
   );
   return(
-    <div className="aFI" style={{padding:"24px 20px 104px"}}>
+    <div className="aFI" style={{padding:"24px 0 104px"}}>
+      <div style={{padding:"0 20px"}}>
       <div style={{background:`linear-gradient(135deg,${C.card},${C.surface})`,borderRadius:22,padding:"36px 24px",border:`1px solid ${C.border}`,textAlign:"center",marginBottom:20,position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${C.gold},transparent)`}}/>
         <div style={{width:86,height:86,borderRadius:"50%",background:`linear-gradient(135deg,${C.gold},${C.goldD})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:34,fontWeight:800,color:"#06060c",margin:"0 auto 16px",boxShadow:`0 10px 36px ${C.goldGlow}`}}>
@@ -675,12 +837,16 @@ function PageProfile({curUser,allRatings,allComments,watchlist,onLogout,setView,
         <h2 style={{color:C.text,fontWeight:700,fontSize:24,marginBottom:10,fontFamily:"'Cormorant Garamond',serif"}}>{curUser.username}</h2>
         <span style={{display:"inline-flex",alignItems:"center",gap:7,background:curUser.isAdmin?C.goldL:C.surface,border:`1px solid ${curUser.isAdmin?C.gold+"55":C.border}`,borderRadius:24,padding:"7px 18px",color:curUser.isAdmin?C.gold:C.muted,fontSize:14,fontWeight:600}}><Ic n={curUser.isAdmin?"gear":"user"} size={14} color={curUser.isAdmin?C.gold:C.muted}/>{curUser.isAdmin?"Ադմինիստրատոր":"Օգտատեր"}</span>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:22}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:6}}>
         {[["starF",totalR,"Գնահատականներ",C.gold],["chat",totalC,"Մեկնաբանություններ",C.blue],["bookmark",watchlist.size,"Ցուցակ",C.gold]].map(([ic,n,lb,cl])=>(
           <div key={lb} style={{background:C.card,borderRadius:16,padding:"20px 12px",border:`1px solid ${C.border}`,textAlign:"center"}}><Ic n={ic} size={24} color={cl} style={{margin:"0 auto 8px"}}/><div style={{color:cl,fontSize:26,fontWeight:800,fontFamily:"'Cormorant Garamond',serif"}}>{n}</div><div style={{color:C.muted,fontSize:11,marginTop:4}}>{lb}</div></div>
         ))}
       </div>
+      </div>
+      <ContinueRow items={cont} onSelect={onSelect} C={C}/>
+      <div style={{padding:"22px 20px 0"}}>
       <Btn v="danger" sz="lg" full onClick={onLogout} C={C}><Ic n="logout" size={17} color={C.red}/>Դուրս Գալ</Btn>
+      </div>
     </div>
   );
 }
@@ -723,7 +889,7 @@ function Header({curUser,onProfileClick,isDark,onToggleTheme,C}){
 
 /* ROOT APP */
 function App(){
-  const[isDark,setIsDark]=useState(true);
+  const[isDark,setIsDark]=useState(()=>lsGet("kb_theme_v3",true)!==false);
   const C=isDark?D:L;
   useEffect(()=>{
     let st=document.getElementById("kb-style");
@@ -732,73 +898,104 @@ function App(){
     document.body.style.background=C.bg;
     document.body.style.color=C.text;
   });
+  useEffect(()=>{lsSet("kb_theme_v3",isDark);},[isDark]);
 
-  const[ready,setReady]=useState(false);
+  const[moviesMap,setMoviesMap]=useState(null);
+  const[usersMap,setUsersMap]=useState(null);
+  const[ratingsMap,setRatingsMap]=useState({});
+  const[commentsMap,setCommentsMap]=useState({});
+  const[wlIds,setWlIds]=useState([]);
+  const[progMap,setProgMap]=useState({});
+  const[curId,setCurId]=useState(()=>lsGet("kb_sid_v3",null));
+  const[forceReady,setForceReady]=useState(false);
   const[saveErr,setSaveErr]=useState(false);
-  const[movies,setMovies]=useState([]);
-  const[users,setUsers]=useState(INIT_USERS);
-  const[allRatings,setAllRatings]=useState({});
-  const[allComments,setAllComments]=useState({});
-  const[wlMap,setWlMap]=useState({});
-  const[curUser,setCurUser]=useState(null);
 
-  /* ── Բեռնում պահոցից (մեկ անգամ, էջը բացելիս) ── */
+  /* Ամբողջ տվյալների կենդանի բաժանորդագրություն (բոլոր սարքերում նույնն է) */
   useEffect(()=>{
-    let dead=false;
-    (async()=>{
-      try{ if(navigator.storage&&navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
-      let mv=await dbGet(K_MOVIES,null);   if(mv===null) mv=lsGet(LS_OLD.movies,[]);
-      let rt=await dbGet(K_RATINGS,null);  if(rt===null) rt=lsGet(LS_OLD.ratings,{});
-      let cm=await dbGet(K_COMMENTS,null); if(cm===null) cm=lsGet(LS_OLD.comments,{});
-      let us=await dbGet(K_USERS,null);    if(us===null) us=lsGet(LS_OLD.users,INIT_USERS);
-      const wl=await dbGet(K_WL,{});
-      const sid=await dbGet(K_SESSION,null);
-      const th=await dbGet(K_THEME,true);
-      if(dead) return;
-      mv=dropSeedMovies(mv); rt=dropSeedKeys(rt); cm=dropSeedKeys(cm);
-      if(!Array.isArray(us)||!us.some(u=>u.id==="u_admin")) us=[...INIT_USERS,...(Array.isArray(us)?us:[])];
-      setMovies(mv); setAllRatings(rt); setAllComments(cm); setUsers(us); setWlMap(wl||{}); setIsDark(th!==false);
-      if(sid){ const f=us.find(u=>u.id===sid); if(f) setCurUser(f); }
-      setReady(true);
-    })();
-    return()=>{dead=true;};
+    try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
+    const offs=[
+      Store.listen("movies",setMoviesMap),
+      Store.listen("users",setUsersMap),
+      Store.listen("ratings",setRatingsMap),
+      Store.listen("comments",setCommentsMap),
+    ];
+    const t=setTimeout(()=>setForceReady(true),7000);
+    return()=>{offs.forEach(f=>f&&f());clearTimeout(t);};
   },[]);
+  useEffect(()=>{
+    setWlIds([]);setProgMap({});
+    if(!curId)return;
+    const a=Store.listenDoc("watchlist",curId,d=>setWlIds((d&&d.ids)||[]));
+    const b=Store.listenDoc("progress",curId,d=>setProgMap((d&&d.map)||{}));
+    return()=>{a&&a();b&&b();};
+  },[curId]);
 
-  /* ── Ավտոմատ պահպանում ամեն փոփոխությունից հետո ── */
-  const persist=(key,val)=>{ dbSet(key,val).then(ok=>setSaveErr(!ok)); };
-  useEffect(()=>{ if(ready) persist(K_MOVIES,movies); },[movies,ready]);
-  useEffect(()=>{ if(ready) persist(K_USERS,users); },[users,ready]);
-  useEffect(()=>{ if(ready) persist(K_RATINGS,allRatings); },[allRatings,ready]);
-  useEffect(()=>{ if(ready) persist(K_COMMENTS,allComments); },[allComments,ready]);
-  useEffect(()=>{ if(ready) persist(K_WL,wlMap); },[wlMap,ready]);
-  useEffect(()=>{ if(ready) persist(K_SESSION,curUser?curUser.id:null); },[curUser,ready]);
-  useEffect(()=>{ if(ready) persist(K_THEME,isDark); },[isDark,ready]);
+  /* Ադմինի հաշիվը ստեղծվում է առաջին անգամ */
+  const seeded=useRef(false);
+  useEffect(()=>{
+    if(!usersMap||seeded.current)return;
+    seeded.current=true;
+    if(!usersMap["u_admin"]){
+      hashPw("admin","admin123").then(h=>Store.put("users","u_admin",{id:"u_admin",username:"admin",pass:h,isAdmin:true}));
+    }
+  },[usersMap]);
 
-  const watchlist=new Set(curUser?(wlMap[curUser.id]||[]):[]);
+  const ready=(moviesMap!==null&&usersMap!==null)||forceReady;
+  const movies=Object.values(moviesMap||{}).filter(m=>!OLD_SEED_IDS.includes(m.id));
+  const users=usersMap||{};
+  const curUser=curId&&users[curId]?users[curId]:null;
+  const allRatings={};Object.keys(ratingsMap).forEach(k=>{allRatings[k]=ratingsMap[k].list||[];});
+  const allComments={};Object.keys(commentsMap).forEach(k=>{allComments[k]=commentsMap[k].list||[];});
+  const watchlist=new Set(wlIds);
+  const cont=Object.entries(progMap).map(([id,p])=>({movie:movies.find(m=>m.id===id),p})).filter(x=>x.movie&&x.p&&x.p.t>5).sort((a,b)=>(b.p.at||0)-(a.p.at||0));
+
+  const save=async pr=>{const ok=await pr;setSaveErr(ok===false);return ok;};
+
   const[view,setView]=useState("home");
-  const[selMovie,setSelMovie]=useState(null);
+  const[selId,setSelId]=useState(null);
   const[editMovie,setEditMovie]=useState(null);
   const[authError,setAuthError]=useState("");
+  const selMovie=movies.find(m=>m.id===selId)||null;
 
-  const handleLogin=(u,p)=>{const f=users.find(x=>x.username===u&&x.password===p);if(f){setCurUser(f);setAuthError("");setView("home");}else setAuthError("Օգտանունը կամ գաղտնաբառը սխալ է");};
-  const handleRegister=(u,p)=>{if(u.toLowerCase()==="admin"||users.find(x=>x.username===u)){setAuthError("Օգտանունը զբաղված է");return;}const nu={id:uid(),username:u,password:p,isAdmin:false};setUsers(pr=>[...pr,nu]);setCurUser(nu);setAuthError("");setView("home");};
-  const handleLogout=()=>{setCurUser(null);setView("home");};
-  const handleRate=(mid,stars)=>{if(!curUser)return;setAllRatings(p=>({...p,[mid]:[...(p[mid]||[]).filter(r=>r.userId!==curUser.id),{userId:curUser.id,stars}]}));};
-  const handleComment=(mid,text)=>{if(!curUser)return;setAllComments(p=>({...p,[mid]:[...(p[mid]||[]),{id:uid(),userId:curUser.id,userName:curUser.username,text,createdAt:Date.now()}]}));};
+  const handleLogin=async(u,p)=>{
+    const h=await hashPw(u,p);
+    const f=Object.values(users).find(x=>x.username===u&&x.pass===h);
+    if(f){setCurId(f.id);lsSet("kb_sid_v3",f.id);setAuthError("");setView("home");}
+    else setAuthError("Օգտանունը կամ գաղտնաբառը սխալ է");
+  };
+  const handleRegister=async(u,p)=>{
+    if(u.toLowerCase()==="admin"||Object.values(users).find(x=>x.username.toLowerCase()===u.toLowerCase())){setAuthError("Օգտանունը զբաղված է");return;}
+    const nu={id:uid(),username:u,pass:await hashPw(u,p),isAdmin:false};
+    await save(Store.put("users",nu.id,nu));
+    setCurId(nu.id);lsSet("kb_sid_v3",nu.id);setAuthError("");setView("home");
+  };
+  const handleLogout=()=>{setCurId(null);lsSet("kb_sid_v3",null);setView("home");};
+  const handleRate=(mid,stars)=>{if(!curUser)return;const list=[...(allRatings[mid]||[]).filter(r=>r.userId!==curUser.id),{userId:curUser.id,stars}];save(Store.put("ratings",mid,{list}));};
+  const handleComment=(mid,text)=>{if(!curUser)return;const list=[...(allComments[mid]||[]),{id:uid(),userId:curUser.id,userName:curUser.username,text,createdAt:Date.now()}];save(Store.put("comments",mid,{list}));};
   const handleWatchlist=id=>{
     if(!curUser){setView("auth");return;}
-    setWlMap(p=>{const cur=new Set(p[curUser.id]||[]);cur.has(id)?cur.delete(id):cur.add(id);return {...p,[curUser.id]:[...cur]};});
+    const n=wlIds.includes(id)?wlIds.filter(x=>x!==id):[...wlIds,id];
+    setWlIds(n);save(Store.put("watchlist",curUser.id,{ids:n}));
   };
-  const handleAddMovie=m=>setMovies(p=>[m,...p]);
-  const handleDeleteMovie=id=>{setMovies(p=>p.filter(m=>m.id!==id));if(selMovie?.id===id){setSelMovie(null);setView("home");}setEditMovie(null);};
-  const handleSaveEdit=upd=>{setMovies(p=>p.map(m=>m.id===upd.id?{...m,...upd}:m));if(selMovie?.id===upd.id)setSelMovie(pr=>({...pr,...upd}));setEditMovie(null);};
+  const progRef=useRef({});progRef.current=progMap;
+  const handleProgress=(mid,t,d,ended)=>{
+    if(!curUser)return;
+    const map={...progRef.current};
+    if(ended||t>d-15||t<5)delete map[mid];
+    else map[mid]={t:Math.floor(t),d:Math.floor(d),at:Date.now()};
+    progRef.current=map;setProgMap(map);
+    save(Store.put("progress",curUser.id,{map}));
+  };
+  const handleAddMovie=m=>save(Store.put("movies",m.id,m));
+  const handleDeleteMovie=id=>{save(Store.del("movies",id));if(selId===id){setSelId(null);setView("home");}setEditMovie(null);};
+  const handleSaveEdit=upd=>{save(Store.put("movies",upd.id,{...(moviesMap[upd.id]||{}),...upd}));setEditMovie(null);};
   const openEdit=m=>{if(!curUser?.isAdmin){setView("auth");return;}setEditMovie(m);};
-  const openDetail=m=>{setSelMovie(m);setView("detail");};
+  const openDetail=m=>{setSelId(m.id);setView("detail");};
   const isAdmin=curUser?.isAdmin;
   const hideAll=view==="auth";
   const hideNav=view==="auth"||view==="detail";
   const navChange=v=>{if(v==="admin"&&!isAdmin){setView("auth");return;}setView(v);};
-  const cp={movies,allRatings,watchlist,onWatchlist:handleWatchlist,onEdit:isAdmin?openEdit:null,onSelect:openDetail,goAdmin:()=>setView("admin"),C};
+  const cp={movies,allRatings,watchlist,onWatchlist:handleWatchlist,onEdit:isAdmin?openEdit:null,onSelect:openDetail,goAdmin:()=>setView("admin"),cont,C};
 
   if(!ready)return(
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><Logo h={46} C={C}/></div>
@@ -806,15 +1003,16 @@ function App(){
 
   return(
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'Jost',sans-serif",maxWidth:680,margin:"0 auto",position:"relative",overflowX:"hidden",transition:"background .35s,color .35s"}}>
-      {saveErr&&<div style={{position:"fixed",top:0,left:0,right:0,zIndex:999,background:C.red,color:"#fff",fontSize:12,fontWeight:600,textAlign:"center",padding:"8px 12px"}}>⚠ Տվյալները չեն պահպանվում. սարքի հիշողությունը լցված է կամ պահոցն արգելափակված է</div>}
+      {saveErr&&<div style={{position:"fixed",top:0,left:0,right:0,zIndex:999,background:C.red,color:"#fff",fontSize:12,fontWeight:600,textAlign:"center",padding:"8px 12px"}}>⚠ Տվյալները չեն պահպանվում. ստուգեք կապը կամ Firebase-ի կանոնները</div>}
+      {!CLOUD&&isAdmin&&<div style={{background:C.goldL,borderBottom:`1px solid ${C.gold}44`,color:C.gold,fontSize:12,fontWeight:600,textAlign:"center",padding:"8px 12px",lineHeight:1.5}}>Տեղային ռեժիմ. Firebase-ը միացված չէ, ֆիլմերը այլ սարքերում չեն երևա (լրացրեք FIREBASE_CONFIG-ը)</div>}
       {!hideAll&&<Header curUser={curUser} onProfileClick={()=>setView(curUser?"profile":"auth")} isDark={isDark} onToggleTheme={()=>setIsDark(d=>!d)} C={C}/>}
       {view==="home"     &&<PageHome      {...cp}/>}
       {view==="movies"   &&<PageMovies    {...cp}/>}
       {view==="watchlist"&&<PageWatchlist {...cp}/>}
       {view==="admin"    &&isAdmin&&<PageAdmin movies={movies} onAdd={handleAddMovie} onDelete={handleDeleteMovie} onEdit={openEdit} C={C}/>}
-      {view==="profile"  &&<PageProfile curUser={curUser} allRatings={allRatings} allComments={allComments} watchlist={watchlist} onLogout={handleLogout} setView={setView} C={C}/>}
+      {view==="profile"  &&<PageProfile curUser={curUser} allRatings={allRatings} allComments={allComments} watchlist={watchlist} cont={cont} onSelect={openDetail} onLogout={handleLogout} setView={setView} C={C}/>}
       {view==="auth"     &&<PageAuth onLogin={handleLogin} onRegister={handleRegister} onBack={()=>setView("home")} error={authError} C={C}/>}
-      {view==="detail"   &&selMovie&&<PageDetail movie={selMovie} curUser={curUser} allRatings={allRatings} allComments={allComments} watchlist={watchlist} onRate={handleRate} onComment={handleComment} onWatchlist={handleWatchlist} onBack={()=>setView("home")} onDelete={handleDeleteMovie} onEdit={openEdit} C={C}/>}
+      {view==="detail"   &&selMovie&&<PageDetail movie={selMovie} curUser={curUser} allRatings={allRatings} allComments={allComments} watchlist={watchlist} prog={progMap[selMovie.id]} onRate={handleRate} onComment={handleComment} onWatchlist={handleWatchlist} onProgress={handleProgress} onBack={()=>setView("home")} onDelete={handleDeleteMovie} onEdit={openEdit} C={C}/>}
       {!hideNav&&<BottomNav active={view} isAdmin={isAdmin} onChange={navChange} C={C}/>}
       {editMovie&&<EditModal movie={editMovie} onSave={handleSaveEdit} onClose={()=>setEditMovie(null)} C={C}/>}
     </div>
