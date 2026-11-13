@@ -18,38 +18,60 @@ const L={bg:"#f5f2eb",surface:"#ffffff",card:"#faf8f3",cardH:"#f0ede4",border:"#
 
 const GENRES=[{id:"all",label:"Բոլոր",icon:"🎬"},{id:"action",label:"Ակցիոն",icon:"💥"},{id:"drama",label:"Դրամա",icon:"🎭"},{id:"comedy",label:"Կատակերգություն",icon:"😂"},{id:"horror",label:"Սարսափ",icon:"👻"},{id:"thriller",label:"Թրիլեր",icon:"🔪"},{id:"sci-fi",label:"Ֆանտաստիկա",icon:"🚀"},{id:"romance",label:"Ռոմանտիկ",icon:"❤️"},{id:"armenian",label:"Հայկական",icon:"🇦🇲"},{id:"animation",label:"Անիմացիա",icon:"✨"}];
 
-const SEED=[
-  {id:"m1",title:"Inception",year:2010,genre:"thriller",duration:"2ժ 28ր",director:"Christopher Nolan",language:"Անգլերեն",rating:8.8,poster:"https://picsum.photos/seed/inc001/300/450",videoUrl:"",videoName:"",description:"Dom Cobb-ը երազներում գաղտնիքները գողանալու վարպետ է:",addedAt:Date.now()-86400000*1,price:3500},
-  {id:"m2",title:"Parasite",year:2019,genre:"drama",duration:"2ժ 12ր",director:"Bong Joon-ho",language:"Կորեերեն",rating:8.5,poster:"https://picsum.photos/seed/par002/300/450",videoUrl:"",videoName:"",description:"Երկու ընտանիք՝ հարուստներ և աղքատներ, դաժան հակություն ունեն:",addedAt:Date.now()-86400000*5,price:2800},
-  {id:"m3",title:"Interstellar",year:2014,genre:"sci-fi",duration:"2ժ 49ր",director:"Christopher Nolan",language:"Անգլերեն",rating:8.6,poster:"https://picsum.photos/seed/int003/300/450",videoUrl:"",videoName:"",description:"Մարդկությունը փրկելու տիեզերական արշավանքը:",addedAt:Date.now()-86400000*12,price:3500},
-  {id:"m4",title:"Joker",year:2019,genre:"drama",duration:"2ժ 02ր",director:"Todd Phillips",language:"Անգլերեն",rating:8.4,poster:"https://picsum.photos/seed/jok004/300/450",videoUrl:"",videoName:"",description:"Արթուր Ֆլեքը կատակերգու է, որը դառնում է Գոթեմի հանցագործը:",addedAt:Date.now()-86400000*8,price:2800},
-  {id:"m5",title:"The Godfather",year:1972,genre:"drama",duration:"2ժ 55ր",director:"Francis Ford Coppola",language:"Անգլերեն",rating:9.2,poster:"https://picsum.photos/seed/god005/300/450",videoUrl:"",videoName:"",description:"Corleone մաֆիոզ ընտանիքի դրաման:",addedAt:Date.now()-86400000*30,price:2500},
-  {id:"m6",title:"Avengers: Endgame",year:2019,genre:"action",duration:"3ժ 01ր",director:"Russo Brothers",language:"Անգլերեն",rating:8.4,poster:"https://picsum.photos/seed/avg006/300/450",videoUrl:"",videoName:"",description:"Marvel-ի հերոսները վերջին ճակատամարտն են գնում Thanos-ի դեմ:",addedAt:Date.now()-86400000*3,price:4000},
-  {id:"m7",title:"Get Out",year:2017,genre:"horror",duration:"1ժ 44ր",director:"Jordan Peele",language:"Անգլերեն",rating:7.7,poster:"https://picsum.photos/seed/get007/300/450",videoUrl:"",videoName:"",description:"Սև երիտասարդի ծանոթության ժամանակ բացահայտված սարսափ գաղտնիք:",addedAt:Date.now()-86400000*6,price:2800},
-  {id:"m8",title:"La La Land",year:2016,genre:"romance",duration:"2ժ 08ր",director:"Damien Chazelle",language:"Անգլերեն",rating:8.0,poster:"https://picsum.photos/seed/lal008/300/450",videoUrl:"",videoName:"",description:"Լոս Անջելեսում սիրավեպ երաժշտությամբ:",addedAt:Date.now()-86400000*15,price:2800},
-  {id:"m9",title:"The Dark Knight",year:2008,genre:"action",duration:"2ժ 32ր",director:"Christopher Nolan",language:"Անգլերեն",rating:9.0,poster:"https://picsum.photos/seed/tdk009/300/450",videoUrl:"",videoName:"",description:"Batman-ի և Joker-ի վերջնական ընդհարումը Գոթեմ քաղաքում:",addedAt:Date.now()-86400000*20,price:3200},
-  {id:"m10",title:"Spirited Away",year:2001,genre:"animation",duration:"2ժ 05ր",director:"Hayao Miyazaki",language:"Ճապոներեն",rating:9.3,poster:"https://picsum.photos/seed/spi010/300/450",videoUrl:"",videoName:"",description:"Տասնամյա աղջիկը կախարդական աշխարհում է հայտնվում:",addedAt:Date.now()-86400000*45,price:2200},
-];
+/* Հին օրինակ ֆիլմերի ID-ները — դրանք ավտոմատ հեռացվում են պահված տվյալներից */
+const OLD_SEED_IDS=["m1","m2","m3","m4","m5","m6","m7","m8","m9","m10"];
+const dropSeedMovies=arr=>(Array.isArray(arr)?arr:[]).filter(m=>!OLD_SEED_IDS.includes(m.id));
+const dropSeedKeys=obj=>{const o={};Object.keys(obj||{}).forEach(k=>{if(!OLD_SEED_IDS.includes(k))o[k]=obj[k];});return o;};
 
 const INIT_USERS=[{id:"u_admin",username:"admin",password:"admin123",isAdmin:true}];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2);
 const avgRating=rs=>rs?.length?(rs.reduce((s,r)=>s+r.stars,0)/rs.length).toFixed(1):null;
 
-/* ── localStorage helpers ── */
-const LS_MOVIES   = "kb_movies_v1";
-const LS_RATINGS  = "kb_ratings_v1";
-const LS_COMMENTS = "kb_comments_v1";
-const LS_USERS    = "kb_users_v1";
+/* ── Մշտական պահոցը (IndexedDB) — մեծ վիդեոների համար էլ բավարար տեղ ունի ── */
+const K_MOVIES="kb_movies_v2", K_RATINGS="kb_ratings_v2", K_COMMENTS="kb_comments_v2", K_USERS="kb_users_v2", K_WL="kb_watchlist_v2", K_SESSION="kb_session_v2", K_THEME="kb_theme_v2";
+/* Հին localStorage բանալիներ (միգրացիայի համար) */
+const LS_OLD={movies:"kb_movies_v1",ratings:"kb_ratings_v1",comments:"kb_comments_v1",users:"kb_users_v1"};
 
 function lsGet(key, fallback){
-  try{
-    const raw = localStorage.getItem(key);
-    if(raw===null) return fallback;
-    return JSON.parse(raw);
-  }catch(e){ return fallback; }
+  try{ const raw=localStorage.getItem(key); return raw===null?fallback:JSON.parse(raw); }catch(e){ return fallback; }
 }
 function lsSet(key, value){
-  try{ localStorage.setItem(key, JSON.stringify(value)); }catch(e){}
+  try{ localStorage.setItem(key, JSON.stringify(value)); return true; }catch(e){ return false; }
+}
+
+const DB_NAME="kinobak_db", STORE="kv";
+let _dbP=null;
+function openDB(){
+  return new Promise((res,rej)=>{
+    if(!window.indexedDB){rej(new Error("no idb"));return;}
+    const r=indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE); };
+    r.onsuccess=()=>res(r.result);
+    r.onerror=()=>rej(r.error);
+  });
+}
+const getDB=()=>_dbP||(_dbP=openDB());
+async function dbGet(key, fallback){
+  try{
+    const d=await getDB();
+    return await new Promise(res=>{
+      const q=d.transaction(STORE).objectStore(STORE).get(key);
+      q.onsuccess=()=>res(q.result===undefined?fallback:q.result);
+      q.onerror=()=>res(fallback);
+    });
+  }catch(e){ return lsGet("idbfb_"+key, fallback); }
+}
+async function dbSet(key, value){
+  try{
+    const d=await getDB();
+    return await new Promise(res=>{
+      const t=d.transaction(STORE,"readwrite");
+      t.objectStore(STORE).put(value,key);
+      t.oncomplete=()=>res(true);
+      t.onerror=()=>res(false);
+      t.onabort=()=>res(false);
+    });
+  }catch(e){ return lsSet("idbfb_"+key, value); }
 }
 /* ── ── ── ── ── ── ── ── ── */
 
@@ -218,7 +240,7 @@ function VideoPlayer({src,title,onClose,C}){
 function MCard({movie,allRatings,watchlist,onWatchlist,onEdit,onClick,delay=0,C}){
   const rs=allRatings[movie.id]||[];
   const avg=avgRating(rs);
-  const disp=avg||movie.rating?.toFixed(1);
+  const disp=avg||movie.rating?.toFixed?.(1);
   const isWL=watchlist?.has(movie.id);
   return(
     <div className="cl aSC" onClick={onClick}
@@ -233,7 +255,7 @@ function MCard({movie,allRatings,watchlist,onWatchlist,onEdit,onClick,delay=0,C}
       {movie.videoUrl&&<div style={{position:"absolute",top:8,left:onEdit?40:8,background:`linear-gradient(135deg,${C.gold},${C.goldD})`,borderRadius:6,padding:"3px 7px",display:"flex",alignItems:"center",gap:3}}><Ic n="play" size={9} color="#06060c"/><span style={{fontSize:8,fontWeight:800,color:"#06060c"}}>VIDEO</span></div>}
       <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"10px 10px"}}>
         <GBadge id={movie.genre} C={C}/>
-        <div style={{color:C.text,fontWeight:700,lineHeight:1.25,margin:"5px 0 4px",fontFamily:"'Cormorant Garamond',serif",fontSize:14}}>{movie.title}</div>
+        <div style={{color:"#f2ede4",fontWeight:700,lineHeight:1.25,margin:"5px 0 4px",fontFamily:"'Cormorant Garamond',serif",fontSize:14}}>{movie.title}</div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <span style={{color:C.muted,fontSize:10}}>{movie.year}</span>
           {disp&&<><span style={{color:C.border}}>·</span><span style={{color:C.gold,fontSize:10,display:"flex",gap:2,alignItems:"center"}}><Ic n="starF" size={9} color={C.gold}/>{disp}</span></>}
@@ -342,12 +364,25 @@ function EditModal({movie,onSave,onClose,C}){
   );
 }
 
+/* EMPTY STATE */
+function EmptyCatalog({canAdd,onGoAdmin,C}){
+  return(
+    <div className="aFI" style={{textAlign:"center",padding:"90px 28px"}}>
+      <div style={{width:90,height:90,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px"}}><Ic n="film" size={40} color={C.border}/></div>
+      <h3 style={{fontSize:22,fontWeight:700,color:C.textSub,fontFamily:"'Cormorant Garamond',serif",marginBottom:10}}>Ֆիլմեր դեռ չկան</h3>
+      <div style={{fontSize:14,lineHeight:1.7,color:C.muted,marginBottom:canAdd?24:0}}>{canAdd?"Ավելացրեք առաջին ֆիլմը Admin վահանակից":"Ադմինիստրատորը շուտով ֆիլմեր կավելացնի"}</div>
+      {canAdd&&<Btn v="gold" sz="lg" onClick={onGoAdmin} style={{margin:"0 auto"}} C={C}><Ic n="gear" size={17} color="#06060c"/>Admin վահանակ</Btn>}
+    </div>
+  );
+}
+
 /* PAGE HOME */
-function PageHome({movies,allRatings,watchlist,onWatchlist,onEdit,onSelect,C}){
+function PageHome({movies,allRatings,watchlist,onWatchlist,onEdit,onSelect,goAdmin,C}){
   const sorted=[...movies].sort((a,b)=>b.addedAt-a.addedAt);
   const[featured]=sorted;
   const topRated=[...movies].sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0)).slice(0,8);
   const recent=sorted.slice(1,10);
+  if(movies.length===0)return <EmptyCatalog canAdd={!!onEdit} onGoAdmin={goAdmin} C={C}/>;
   return(
     <div className="aFI" style={{paddingBottom:104}}>
       {featured&&(
@@ -362,10 +397,10 @@ function PageHome({movies,allRatings,watchlist,onWatchlist,onEdit,onSelect,C}){
           {onEdit&&<button className="bp" onClick={e=>{e.stopPropagation();onEdit(featured);}} style={{position:"absolute",top:22,right:22,background:C.goldL,backdropFilter:"blur(12px)",border:`1px solid ${C.gold}44`,borderRadius:10,padding:"9px 16px",cursor:"pointer",display:"flex",gap:6,alignItems:"center"}}><Ic n="edit" size={15} color={C.gold}/><span style={{color:C.gold,fontSize:13,fontWeight:600}}>Խմբագրել</span></button>}
           <div style={{position:"absolute",bottom:0,padding:"0 28px 36px",animation:"slideUp .5s .1s both"}}>
             {featured.rating&&<div style={{display:"flex",gap:3,alignItems:"center",marginBottom:12}}>{[1,2,3,4,5].map(s=><Ic key={s} n={s<=Math.round(featured.rating)?"starF":"star"} size={15} color={C.gold}/>)}<span style={{color:C.gold,fontSize:14,fontWeight:700,marginLeft:6}}>{featured.rating}</span><span style={{color:C.muted,fontSize:12,marginLeft:2}}>IMDb</span></div>}
-            <h1 style={{color:C.text,fontSize:"clamp(26px,5vw,44px)",fontWeight:700,lineHeight:1.05,fontFamily:"'Cormorant Garamond',serif",marginBottom:10,textShadow:"0 4px 24px rgba(0,0,0,.85)"}}>{featured.title}</h1>
+            <h1 style={{color:"#f2ede4",fontSize:"clamp(26px,5vw,44px)",fontWeight:700,lineHeight:1.05,fontFamily:"'Cormorant Garamond',serif",marginBottom:10,textShadow:"0 4px 24px rgba(0,0,0,.85)"}}>{featured.title}</h1>
             <p style={{color:"rgba(242,237,228,.6)",fontSize:14,marginBottom:20,maxWidth:480,lineHeight:1.75,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{featured.description}</p>
             <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-              {featured.duration&&<span style={{background:"rgba(6,6,12,.72)",backdropFilter:"blur(10px)",border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 14px",color:C.textSub,fontSize:12,display:"flex",gap:5,alignItems:"center"}}><Ic n="clock" size={12} color={C.muted}/>{featured.duration}</span>}
+              {featured.duration&&<span style={{background:"rgba(6,6,12,.72)",backdropFilter:"blur(10px)",border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 14px",color:"#a09880",fontSize:12,display:"flex",gap:5,alignItems:"center"}}><Ic n="clock" size={12} color={C.muted}/>{featured.duration}</span>}
               <div style={{background:`linear-gradient(135deg,${C.gold},${C.goldD})`,borderRadius:10,padding:"10px 22px",display:"flex",gap:8,alignItems:"center",boxShadow:`0 4px 18px ${C.goldGlow}`}}><Ic n="play" size={17} color="#06060c"/><span style={{color:"#06060c",fontWeight:700,fontSize:14}}>Դիտել</span></div>
               {onWatchlist&&<button className="bp" onClick={e=>{e.stopPropagation();onWatchlist(featured.id);}} style={{background:"rgba(6,6,12,.72)",backdropFilter:"blur(10px)",border:`1px solid ${watchlist?.has(featured.id)?C.gold+"55":C.border}`,borderRadius:10,padding:"10px 18px",cursor:"pointer",display:"flex",gap:7,alignItems:"center"}}><Ic n={watchlist?.has(featured.id)?"bookmarkF":"bookmark"} size={16} color={watchlist?.has(featured.id)?C.gold:C.muted}/><span style={{color:C.muted,fontSize:13,fontWeight:600}}>Ցուցակ</span></button>}
             </div>
@@ -378,22 +413,23 @@ function PageHome({movies,allRatings,watchlist,onWatchlist,onEdit,onSelect,C}){
           {topRated.map((m,i)=><div key={m.id} style={{flexShrink:0,width:128}}><MCard movie={m} allRatings={allRatings} watchlist={watchlist} onWatchlist={onWatchlist} onEdit={onEdit?()=>onEdit(m):null} onClick={()=>onSelect(m)} delay={i*.04} C={C}/></div>)}
         </div>
       </div>
-      <div style={{padding:"26px 20px 0"}}>
+      {recent.length>0&&<div style={{padding:"26px 20px 0"}}>
         <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:16}}><h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:23,fontWeight:700,color:C.text}}>Նոր Ավելացվածները</h2><div style={{flex:1,height:1,background:`linear-gradient(90deg,${C.border},transparent)`}}/><Ic n="film" size={15} color={C.muted}/></div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(138px,1fr))",gap:14}}>
           {recent.map((m,i)=><MCard key={m.id} movie={m} allRatings={allRatings} watchlist={watchlist} onWatchlist={onWatchlist} onEdit={onEdit?()=>onEdit(m):null} onClick={()=>onSelect(m)} delay={i*.04} C={C}/>)}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
 
 /* PAGE MOVIES */
-function PageMovies({movies,allRatings,watchlist,onWatchlist,onEdit,onSelect,C}){
+function PageMovies({movies,allRatings,watchlist,onWatchlist,onEdit,onSelect,goAdmin,C}){
   const[q,setQ]=useState("");
   const[genre,setGenre]=useState("all");
   const[sort,setSort]=useState("new");
   const filtered=movies.filter(m=>{const mq=!q||m.title.toLowerCase().includes(q.toLowerCase())||(m.director||"").toLowerCase().includes(q.toLowerCase());return mq&&(genre==="all"||m.genre===genre);}).sort((a,b)=>sort==="new"?b.addedAt-a.addedAt:sort==="rating"?(Number(b.rating)||0)-(Number(a.rating)||0):b.year-a.year);
+  if(movies.length===0)return <EmptyCatalog canAdd={!!onEdit} onGoAdmin={goAdmin} C={C}/>;
   return(
     <div className="aFI" style={{padding:"20px 20px 104px"}}>
       <div style={{position:"relative",marginBottom:14}}>
@@ -448,7 +484,7 @@ function PageDetail({movie,curUser,allRatings,allComments,watchlist,onRate,onCom
   const[confirmDel,setConfirmDel]=useState(false);
   const rs=allRatings[movie.id]||[];
   const avg=avgRating(rs);
-  const disp=avg||movie.rating?.toFixed(1);
+  const disp=avg||movie.rating?.toFixed?.(1);
   const myStars=curUser?(rs.find(r=>r.userId===curUser.id)?.stars||0):0;
   const comments=(allComments[movie.id]||[]).slice().reverse();
   const isWL=watchlist?.has(movie.id);
@@ -460,7 +496,7 @@ function PageDetail({movie,curUser,allRatings,allComments,watchlist,onRate,onCom
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to right,rgba(6,6,12,.68) 0%,transparent 62%)"}}/>
         <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,transparent,${C.gold},transparent)`}}/>
         <button className="bp" onClick={onBack} style={{position:"absolute",top:18,left:18,background:"rgba(6,6,12,.82)",backdropFilter:"blur(14px)",border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 16px",cursor:"pointer",display:"flex",gap:8,alignItems:"center"}}>
-          <Ic n="back" size={16} color={C.text}/><span style={{color:C.text,fontSize:13,fontWeight:500}}>Հետ</span>
+          <Ic n="back" size={16} color="#f2ede4"/><span style={{color:"#f2ede4",fontSize:13,fontWeight:500}}>Հետ</span>
         </button>
         <div style={{position:"absolute",top:18,right:18,display:"flex",gap:8}}>
           {curUser&&onWatchlist&&<button className="bp" onClick={()=>onWatchlist(movie.id)} style={{background:isWL?C.goldL:"rgba(6,6,12,.82)",backdropFilter:"blur(14px)",border:`1px solid ${isWL?C.gold+"55":C.border}`,borderRadius:10,padding:11,cursor:"pointer",display:"flex"}}><Ic n={isWL?"bookmarkF":"bookmark"} size={19} color={isWL?C.gold:C.muted}/></button>}
@@ -469,8 +505,8 @@ function PageDetail({movie,curUser,allRatings,allComments,watchlist,onRate,onCom
         <div style={{position:"absolute",bottom:0,padding:"0 24px 28px",animation:"slideUp .4s both"}}>
           <div style={{marginBottom:10}}><GBadge id={movie.genre} C={C}/></div>
           {disp&&<div style={{display:"flex",gap:3,alignItems:"center",marginBottom:10}}>{[1,2,3,4,5].map(s=><Ic key={s} n={s<=Math.round(Number(disp))?"starF":"star"} size={16} color={C.gold}/>)}<span style={{color:C.gold,fontSize:15,fontWeight:700,marginLeft:6}}>{disp}</span></div>}
-          <h1 style={{color:C.text,fontSize:"clamp(24px,5vw,38px)",fontWeight:700,lineHeight:1.1,fontFamily:"'Cormorant Garamond',serif",textShadow:"0 4px 20px rgba(0,0,0,.9)"}}>{movie.title}</h1>
-          <div style={{color:C.textSub,fontSize:12,marginTop:6}}>{movie.year}</div>
+          <h1 style={{color:"#f2ede4",fontSize:"clamp(24px,5vw,38px)",fontWeight:700,lineHeight:1.1,fontFamily:"'Cormorant Garamond',serif",textShadow:"0 4px 20px rgba(0,0,0,.9)"}}>{movie.title}</h1>
+          <div style={{color:"#a09880",fontSize:12,marginTop:6}}>{movie.year}</div>
         </div>
       </div>
 
@@ -581,6 +617,7 @@ function PageAdmin({movies,onAdd,onDelete,onEdit,C}){
             </div>
           </div>
         ))}
+        {movies.length===0&&<div style={{color:C.muted,fontSize:13,textAlign:"center",padding:"18px 0"}}>Դեռ ոչ մի ֆիլմ չկա</div>}
       </div>
       {confirm&&<Confirm msg={`"${confirm.title}" ջնջե՞լ`} onOk={()=>{onDelete(confirm.id);setConfirm(null);}} onCancel={()=>setConfirm(null)} C={C}/>}
     </div>
@@ -696,21 +733,48 @@ function App(){
     document.body.style.color=C.text;
   });
 
-  // ── State with localStorage persistence ──────────────────────────────
-  const[movies,setMovies]=useState(()=>lsGet(LS_MOVIES, SEED));
-  const[users,setUsers]=useState(()=>lsGet(LS_USERS, INIT_USERS));
-  const[allRatings,setAllRatings]=useState(()=>lsGet(LS_RATINGS, {}));
-  const[allComments,setAllComments]=useState(()=>lsGet(LS_COMMENTS, {}));
-
-  // Persist to localStorage whenever these states change
-  useEffect(()=>{ lsSet(LS_MOVIES, movies); },[movies]);
-  useEffect(()=>{ lsSet(LS_USERS, users); },[users]);
-  useEffect(()=>{ lsSet(LS_RATINGS, allRatings); },[allRatings]);
-  useEffect(()=>{ lsSet(LS_COMMENTS, allComments); },[allComments]);
-  // ─────────────────────────────────────────────────────────────────────
-
+  const[ready,setReady]=useState(false);
+  const[saveErr,setSaveErr]=useState(false);
+  const[movies,setMovies]=useState([]);
+  const[users,setUsers]=useState(INIT_USERS);
+  const[allRatings,setAllRatings]=useState({});
+  const[allComments,setAllComments]=useState({});
+  const[wlMap,setWlMap]=useState({});
   const[curUser,setCurUser]=useState(null);
-  const[watchlist,setWatchlist]=useState(new Set());
+
+  /* ── Բեռնում պահոցից (մեկ անգամ, էջը բացելիս) ── */
+  useEffect(()=>{
+    let dead=false;
+    (async()=>{
+      try{ if(navigator.storage&&navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
+      let mv=await dbGet(K_MOVIES,null);   if(mv===null) mv=lsGet(LS_OLD.movies,[]);
+      let rt=await dbGet(K_RATINGS,null);  if(rt===null) rt=lsGet(LS_OLD.ratings,{});
+      let cm=await dbGet(K_COMMENTS,null); if(cm===null) cm=lsGet(LS_OLD.comments,{});
+      let us=await dbGet(K_USERS,null);    if(us===null) us=lsGet(LS_OLD.users,INIT_USERS);
+      const wl=await dbGet(K_WL,{});
+      const sid=await dbGet(K_SESSION,null);
+      const th=await dbGet(K_THEME,true);
+      if(dead) return;
+      mv=dropSeedMovies(mv); rt=dropSeedKeys(rt); cm=dropSeedKeys(cm);
+      if(!Array.isArray(us)||!us.some(u=>u.id==="u_admin")) us=[...INIT_USERS,...(Array.isArray(us)?us:[])];
+      setMovies(mv); setAllRatings(rt); setAllComments(cm); setUsers(us); setWlMap(wl||{}); setIsDark(th!==false);
+      if(sid){ const f=us.find(u=>u.id===sid); if(f) setCurUser(f); }
+      setReady(true);
+    })();
+    return()=>{dead=true;};
+  },[]);
+
+  /* ── Ավտոմատ պահպանում ամեն փոփոխությունից հետո ── */
+  const persist=(key,val)=>{ dbSet(key,val).then(ok=>setSaveErr(!ok)); };
+  useEffect(()=>{ if(ready) persist(K_MOVIES,movies); },[movies,ready]);
+  useEffect(()=>{ if(ready) persist(K_USERS,users); },[users,ready]);
+  useEffect(()=>{ if(ready) persist(K_RATINGS,allRatings); },[allRatings,ready]);
+  useEffect(()=>{ if(ready) persist(K_COMMENTS,allComments); },[allComments,ready]);
+  useEffect(()=>{ if(ready) persist(K_WL,wlMap); },[wlMap,ready]);
+  useEffect(()=>{ if(ready) persist(K_SESSION,curUser?curUser.id:null); },[curUser,ready]);
+  useEffect(()=>{ if(ready) persist(K_THEME,isDark); },[isDark,ready]);
+
+  const watchlist=new Set(curUser?(wlMap[curUser.id]||[]):[]);
   const[view,setView]=useState("home");
   const[selMovie,setSelMovie]=useState(null);
   const[editMovie,setEditMovie]=useState(null);
@@ -721,7 +785,10 @@ function App(){
   const handleLogout=()=>{setCurUser(null);setView("home");};
   const handleRate=(mid,stars)=>{if(!curUser)return;setAllRatings(p=>({...p,[mid]:[...(p[mid]||[]).filter(r=>r.userId!==curUser.id),{userId:curUser.id,stars}]}));};
   const handleComment=(mid,text)=>{if(!curUser)return;setAllComments(p=>({...p,[mid]:[...(p[mid]||[]),{id:uid(),userId:curUser.id,userName:curUser.username,text,createdAt:Date.now()}]}));};
-  const handleWatchlist=id=>{if(!curUser){setView("auth");return;}setWatchlist(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});};
+  const handleWatchlist=id=>{
+    if(!curUser){setView("auth");return;}
+    setWlMap(p=>{const cur=new Set(p[curUser.id]||[]);cur.has(id)?cur.delete(id):cur.add(id);return {...p,[curUser.id]:[...cur]};});
+  };
   const handleAddMovie=m=>setMovies(p=>[m,...p]);
   const handleDeleteMovie=id=>{setMovies(p=>p.filter(m=>m.id!==id));if(selMovie?.id===id){setSelMovie(null);setView("home");}setEditMovie(null);};
   const handleSaveEdit=upd=>{setMovies(p=>p.map(m=>m.id===upd.id?{...m,...upd}:m));if(selMovie?.id===upd.id)setSelMovie(pr=>({...pr,...upd}));setEditMovie(null);};
@@ -731,10 +798,15 @@ function App(){
   const hideAll=view==="auth";
   const hideNav=view==="auth"||view==="detail";
   const navChange=v=>{if(v==="admin"&&!isAdmin){setView("auth");return;}setView(v);};
-  const cp={movies,allRatings,watchlist,onWatchlist:handleWatchlist,onEdit:isAdmin?openEdit:null,onSelect:openDetail,C};
+  const cp={movies,allRatings,watchlist,onWatchlist:handleWatchlist,onEdit:isAdmin?openEdit:null,onSelect:openDetail,goAdmin:()=>setView("admin"),C};
+
+  if(!ready)return(
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><Logo h={46} C={C}/></div>
+  );
 
   return(
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'Jost',sans-serif",maxWidth:680,margin:"0 auto",position:"relative",overflowX:"hidden",transition:"background .35s,color .35s"}}>
+      {saveErr&&<div style={{position:"fixed",top:0,left:0,right:0,zIndex:999,background:C.red,color:"#fff",fontSize:12,fontWeight:600,textAlign:"center",padding:"8px 12px"}}>⚠ Տվյալները չեն պահպանվում. սարքի հիշողությունը լցված է կամ պահոցն արգելափակված է</div>}
       {!hideAll&&<Header curUser={curUser} onProfileClick={()=>setView(curUser?"profile":"auth")} isDark={isDark} onToggleTheme={()=>setIsDark(d=>!d)} C={C}/>}
       {view==="home"     &&<PageHome      {...cp}/>}
       {view==="movies"   &&<PageMovies    {...cp}/>}
