@@ -416,13 +416,13 @@ function MForm({initial,onSave,onCancel,title="Ավելացնել",C}){
       setUp(0);
       const ref=fstore.ref(`videos/${uid()}_${f.name.replace(/[^\w.\-]/g,"_")}`);
       const task=ref.put(f);
-      let started=false;
+      let started=false,timedOut=false;
       const stuck=setTimeout(()=>{
-        if(!started){try{task.cancel();}catch(e){}setUp(null);setUpErr("Վիդեոն չի բեռնվում: Firebase Storage-ը միացված չէ կամ կանոնները արգելում են: Օգտագործեք վիդեոյի հղումը (URL) ներքևի դաշտում:");}
+        if(!started){timedOut=true;try{task.cancel();}catch(e){}setUp(null);setUpErr("Վիդեոն չի բեռնվում: Firebase Storage-ը միացված չէ կամ կանոնները արգելում են: Օգտագործեք վիդեոյի հղումը (URL) ներքևի դաշտում:");}
       },15000);
       task.on("state_changed",
         s=>{if(s.bytesTransferred>0)started=true;setUp(Math.round(s.bytesTransferred/s.totalBytes*100));},
-        err=>{clearTimeout(stuck);console.error(err);setUp(null);setUpErr("Վիդեոն չբեռնվեց ("+(err&&err.code||"սխալ")+"): ստուգեք Firebase Storage-ը կամ օգտագործեք URL");},
+        err=>{clearTimeout(stuck);if(timedOut)return;console.error(err);setUp(null);setUpErr("Վիդեոն չբեռնվեց ("+(err&&err.code||"սխալ")+"): ստուգեք Firebase Storage-ը կամ օգտագործեք URL");},
         async()=>{clearTimeout(stuck);const url=await task.snapshot.ref.getDownloadURL();setForm(fm=>({...fm,videoUrl:url,videoName:f.name}));setUp(null);}
       );
     }else{
